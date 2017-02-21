@@ -659,6 +659,8 @@ void navigation_routerating(entity this, entity e, float f, float rangebias)
 		bool rate_wps = false;
 		if((e.flags & FL_INWATER) || (e.flags & FL_PARTIALGROUND))
 			rate_wps = true;
+		else if(vdist(this.origin - e.origin, <, 500))
+			rate_wps = true;
 
 		if(!IS_ONGROUND(e))
 		{

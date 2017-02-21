@@ -422,6 +422,7 @@ void havocbot_bunnyhop(entity this, vector dir)
 .entity goalcurrent_prev;
 .float goalcurrent_distance;
 .float goalcurrent_distance_time;
+.float bot_playergoal_timeout;
 void havocbot_movetogoal(entity this)
 {
 	vector destorg;
@@ -708,6 +709,22 @@ void havocbot_movetogoal(entity this)
 			return;
 		}
 	}
+
+	if(IS_PLAYER(this.goalcurrent))
+	{
+		if (!this.bot_playergoal_timeout)
+			this.bot_playergoal_timeout = time + 0.5;
+		else if(time > this.bot_playergoal_timeout)
+		{
+			this.bot_playergoal_timeout = 0;
+			navigation_clearroute(this);
+			this.bot_strategytime = 0;
+			return;
+		}
+	}
+	else
+		this.bot_playergoal_timeout = 0;
+
 	if(!locked_goal)
 		navigation_poptouchedgoals(this);
 
