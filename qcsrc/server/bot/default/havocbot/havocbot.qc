@@ -431,8 +431,6 @@ void havocbot_movetogoal(entity this)
 	vector flatdir;
 	vector m1;
 	vector m2;
-	vector evadeobstacle;
-	vector evadelava;
 	float maxspeed;
 	vector gco;
 	//float dist;
@@ -756,8 +754,9 @@ void havocbot_movetogoal(entity this)
 	{
 	//	this.bot_dodgevector_time = time + cvar("bot_ai_dodgeupdateinterval");
 	//	this.bot_dodgevector_jumpbutton = 1;
-		evadeobstacle = '0 0 0';
-		evadelava = '0 0 0';
+		vector evadeobstacle = '0 0 0';
+		vector evadelava = '0 0 0';
+		vector evadehurt = '0 0 0';
 
 		makevectors(this.v_angle.y * '0 1 0');
 		if (this.waterlevel)
@@ -871,7 +870,7 @@ void havocbot_movetogoal(entity this)
 								unreachable = true;
 							}
 							else
-								evadelava = normalize(this.velocity) * -1;
+								evadehurt = normalize(this.velocity) * -1;
 						}
 					}
 				}
@@ -880,11 +879,19 @@ void havocbot_movetogoal(entity this)
 			dir = flatdir;
 			evadeobstacle.z = 0;
 			evadelava.z = 0;
+			evadehurt.z = 0;
 			makevectors(this.v_angle.y * '0 1 0');
 
-			if(evadeobstacle || evadelava || (s == CONTENT_WATER))
+			if(evadeobstacle || evadelava || evadehurt || (s == CONTENT_WATER))
 			{
 				this.aistatus |= AI_STATUS_DANGER_AHEAD;
+				if(this.waterlevel >= WATERLEVEL_WETFEET)
+				{
+					// ignore danger if already in danger
+					if((evadelava && (this.watertype == CONTENT_LAVA || this.watertype == CONTENT_SLIME))
+						|| (this.watertype == CONTENT_WATER && s == CONTENT_WATER))
+						this.aistatus &= ~AI_STATUS_DANGER_AHEAD;
+				}
 				if(IS_PLAYER(this.goalcurrent))
 					unreachable = true;
 			}
