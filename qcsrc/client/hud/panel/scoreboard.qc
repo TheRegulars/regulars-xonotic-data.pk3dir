@@ -1152,7 +1152,7 @@ vector Scoreboard_AccuracyStats_Draw(vector pos, vector rgb, vector bg_size)
 	float weapon_height = 29;
 	float height = hud_fontsize.y + weapon_height;
 
-	drawstring(pos + eX * panel_bg_padding, sprintf(_("Accuracy stats (average %d%%)"), average_accuracy), hud_fontsize, '1 1 1', panel_fg_alpha, DRAWFLAG_NORMAL);
+	drawstring(pos + eX * panel_bg_padding, sprintf(_("Damage stats (average %d%%)"), average_accuracy), hud_fontsize, '1 1 1', panel_fg_alpha, DRAWFLAG_NORMAL);
 	pos.y += 1.25 * hud_fontsize.y;
 	if(panel.current_panel_bg != "0")
 		pos.y += panel_bg_border;
