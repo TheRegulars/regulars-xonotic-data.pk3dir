@@ -176,9 +176,40 @@ void minigame_read_owner(entity this)
 	if ( !this.owner )
 		LOG_TRACE("Got a minigame entity without a minigame!");
 }
+int minigame_ReadSendFlags()
+{
+	int islarge = ReadByte();
+
+	if(!islarge)
+		return ReadInt24_t();
+
+	int sf = 0;
+	vector thesf = ((islarge == 2) ? ReadInt72_t() : ReadInt48_t());
+	for(int j = 0; j < 72; ++j)
+	{
+		if(j < 24)
+		{
+			if(thesf.x & BIT(j))
+				sf |= BIT(j);
+		}
+		else if(j < 48)
+		{
+			if(thesf.y & BIT(j - 24))
+				sf |= BIT(j);
+		}
+		else if(j < 72)
+		{
+			if(thesf.z & BIT(j - 48))
+				sf |= BIT(j);
+		}
+	}
+
+	return sf;
+}
 NET_HANDLE(ENT_CLIENT_MINIGAME, bool isnew)
 {
-	float sf = ReadByte();
+	//float sf = ReadByte();
+	int sf = minigame_ReadSendFlags();
 	if ( sf & MINIG_SF_CREATE )
 	{
 		this.classname = msle_classname(ReadShort());

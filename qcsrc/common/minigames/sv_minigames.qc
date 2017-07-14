@@ -57,12 +57,48 @@ void minigame_rmplayer(entity minigame_session, entity player)
 		if ( sf & MINIG_SF_CREATE ) WriteString(MSG_ENTITY,this.owner.netname); \
 		Fields }
 
+void minigame_WriteSendFlags(int chan, int sf)
+{
+	vector a = '0 0 0';
+
+	// 72 bits maximum
+	for(int j = 0; j < 72; ++j)
+	{
+		if(sf & BIT(j))
+		{
+			if(j < 24)
+				a.x |= BIT(j);
+			else if(j < 48)
+				a.y |= BIT(j - 24);
+			else if(j < 72)
+				a.z |= BIT(j - 48);
+		}
+	}
+
+	if(a.z)
+	{
+		WriteByte(chan, 2); // very large
+		WriteInt72_t(chan, a);
+	}
+	else if(a.y)
+	{
+		WriteByte(chan, 1); // large
+		WriteInt48_t(chan, a);
+	}
+	else
+	{
+		WriteByte(chan, 0); // small
+		WriteInt24_t(chan, a.x);
+	}
+}
+
 // Send an entity to a client
 // only use on minigame entities or entities with a minigame owner
 bool minigame_SendEntity(entity this, entity to, int sf)
 {
 	WriteHeader(MSG_ENTITY, ENT_CLIENT_MINIGAME);
-	WriteByte(MSG_ENTITY, sf);
+	//WriteByte(MSG_ENTITY, sf);
+	minigame_WriteSendFlags(MSG_ENTITY, sf);
 
 	if ( sf & MINIG_SF_CREATE )
 	{
