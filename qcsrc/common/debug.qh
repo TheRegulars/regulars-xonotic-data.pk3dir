@@ -367,3 +367,64 @@ GENERIC_COMMAND(findat, "Search through entities for matching origin")
 		}
 	}
 }
+
+// TODO document
+
+#ifdef GAMEQC
+REGISTER_NET_TEMP(debug_text);
+#endif
+
+#ifdef CSQC
+CLASS(DebugText, Object)
+	ATTRIB(DebugText, origin, vector); // position
+	ATTRIB(DebugText, message, string); // the text (i wanted to use the .text field but then this whole macro-based-inheritance thing shat itself)
+	ATTRIB(DebugText, hit_time, float); // till when it should last
+
+	CONSTRUCTOR(DebugText, vector _origin, string _text, float _last_until) {
+		CONSTRUCT(DebugText);
+		this.origin = _origin;
+		this.message = strzone(_text);
+		this.hit_time = _last_until;
+		IL_PUSH(g_drawables_2d, this);
+	}
+
+	DESTRUCTOR(DebugText) {
+		// TODO this never runs
+		strunzone(this.message);
+	}
+
+	void DebugText_draw2d(DebugText this) {
+		if (time > this.hit_time) {
+			delete(this);
+			return;
+		}
+
+		vector screen_pos = project_3d_to_2d(this.origin);
+		if (screen_pos.z < 0) return; // behind camera
+		screen_pos.z = 0;
+
+		vector rgb = '1 1 0';
+		int size = 8;
+		drawcolorcodedstring2_builtin(screen_pos, this.message, size * '1 1 0', rgb, 1.0, DRAWFLAG_NORMAL);
+	}
+	ATTRIB(DebugText, draw2d, void(DebugText), DebugText_draw2d);
+ENDCLASS(DebugText)
+
+NET_HANDLE(debug_text, bool is_new) {
+	// TODO make_impure() ?
+	vector pos = ReadVector();
+	string msg = ReadString();
+	float duration = ReadFloat();
+	make_impure(NEW(DebugText, pos, msg, time + duration));
+	return true;
+}
+#endif // CSQC
+
+#ifdef SVQC
+void debug_text(vector pos, string msg, float duration) {
+	WriteHeader(MSG_BROADCAST, debug_text);
+	WriteVector(MSG_BROADCAST, pos);
+	WriteString(MSG_BROADCAST, msg);
+	WriteFloat(MSG_BROADCAST, duration);
+}
+#endif // SVQC
