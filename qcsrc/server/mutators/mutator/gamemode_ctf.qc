@@ -444,7 +444,7 @@ void ctf_Handle_Throw(entity player, entity receiver, int droptype)
 	flag.owner.flagcarried = NULL;
 	GameRules_scoring_vip(flag.owner, false);
 	flag.owner = NULL;
-	flag.solid = SOLID_TRIGGER;
+	flag.solid = SOLID_BBOX;
 	flag.ctf_dropper = player;
 	flag.ctf_droptime = time;
 	navigation_dynamicgoal_set(flag);
