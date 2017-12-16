@@ -1,0 +1,38 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Starting docker daemon
+      - /usr/local/bin/docker-start.sh
+      - echo Logging in to Amazon ECR...
+      - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
+      - docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/bacher09/xonplaces:latest
+      - docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/bacher09/xonplaces:latest bacher09/xonplaces:latest
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building QuakeC progs
+      - make QCCDEFS_EXTRA="-DSTUFFTO_ENABLED"
+      - mkdir /artifacts
+      - echo Move csprogs to artifacts folder
+      - find ./qcsrc/ -name csprogs-xonotic*.pk3 -exec mv \{} /artifacts/ \;
+      - rm -f csprogs.*
+      - ./makepackage.sh
+      - mkdir docker/data/
+      - cp /artifacts/*.pk3 docker/data/
+      - wget -P docker/data/ "http://xonotic.in.ua/slava/xonotic_data/xonotic-20170401-maps-server.pk3"
+      - git -C docker/ clone --depth=1 https://github.com/xonotic/xonotic
+      - docker build -t $IMAGE_REPO_NAME docker/
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+  post_build:
+    commands:
+      - ls /artifacts
+      - echo Upload csprogs to CDN
+      - aws s3 cp /artifacts/csprogs-*.pk3 s3://dl.regulars.win/csprogs/
+      - echo Pushing the Docker image...
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+artifacts:
+  files:
+    - '*.pk3'
+  base-directory: /artifacts
