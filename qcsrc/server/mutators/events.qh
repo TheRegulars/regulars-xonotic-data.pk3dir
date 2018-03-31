@@ -3,6 +3,9 @@
 #include <common/mutators/base.qh>
 
 // register all possible hooks here
+ 
+// to use a hook, first register your mutator using REGISTER_MUTATOR
+// then create your function using MUTATOR_HOOKFUNCTION
 
 /** called when a player becomes observer, after shared setup */
 #define EV_MakePlayerObserver(i, o) \
@@ -23,6 +26,12 @@ MUTATOR_HOOKABLE(PutClientInServer, EV_PutClientInServer);
     /** player */ i(entity, MUTATOR_ARGV_0_entity) \
     /**/
 MUTATOR_HOOKABLE(ForbidSpawn, EV_ForbidSpawn);
+
+/** called when player spawns to determine whether to give them random start weapons. Return true to forbid giving them. */
+#define EV_ForbidRandomStartWeapons(i, o) \
+	/** player */ i(entity, MUTATOR_ARGV_0_entity) \
+    /**/
+MUTATOR_HOOKABLE(ForbidRandomStartWeapons, EV_ForbidRandomStartWeapons);
 
 /** called when a player spawns as player, after shared setup, before his weapon is chosen (so items may be changed in here) */
 #define EV_PlayerSpawn(i, o) \
@@ -1059,3 +1068,9 @@ MUTATOR_HOOKABLE(PlayerPhysics_UpdateStats, EV_PlayerPhysics_UpdateStats);
     /** bot */ i(entity, MUTATOR_ARGV_0_entity) \
     /**/
 MUTATOR_HOOKABLE(HavocBot_Aim, EV_HavocBot_Aim);
+
+/** return true to skip respawn time calculations */
+#define EV_CalculateRespawnTime(i, o) \
+    /** player */ i(entity, MUTATOR_ARGV_0_entity) \
+    /**/
+MUTATOR_HOOKABLE(CalculateRespawnTime, EV_CalculateRespawnTime);

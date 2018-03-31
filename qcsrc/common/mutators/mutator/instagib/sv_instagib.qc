@@ -84,59 +84,59 @@ void instagib_ammocheck(entity this)
 		this.instagib_needammo = true;
 		if (hp <= 5)
 		{
-			Damage(this, this, this, 5, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 5, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_INSTAGIB_TERMINATED);
 		}
 		else if (hp <= 10)
 		{
-			Damage(this, this, this, 5, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 5, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_1);
 		}
 		else if (hp <= 20)
 		{
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_2);
 		}
 		else if (hp <= 30)
 		{
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_3);
 		}
 		else if (hp <= 40)
 		{
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_4);
 		}
 		else if (hp <= 50)
 		{
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_5);
 		}
 		else if (hp <= 60)
 		{
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_6);
 		}
 		else if (hp <= 70)
 		{
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_7);
 		}
 		else if (hp <= 80)
 		{
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_8);
 		}
 		else if (hp <= 90)
 		{
 			Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CENTER_INSTAGIB_FINDAMMO);
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 			Send_Notification(NOTIF_ONE, this, MSG_ANNCE, ANNCE_NUM_9);
 		}
 		else
 		{
 			Send_Notification(NOTIF_ONE_ONLY, this, MSG_MULTI, MULTI_INSTAGIB_FINDAMMO);
-			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, this.origin, '0 0 0');
+			Damage(this, this, this, 10, DEATH_NOAMMO.m_id, DMG_NOWEP, this.origin, '0 0 0');
 		}
 	}
 	this.instagib_nextthink = time + 1;
@@ -176,6 +176,11 @@ MUTATOR_HOOKFUNCTION(mutator_instagib, MakePlayerObserver)
 	entity player = M_ARGV(0, entity);
 
 	instagib_stop_countdown(player);
+}
+
+MUTATOR_HOOKFUNCTION(mutator_instagib, ForbidRandomStartWeapons)
+{
+	return true;
 }
 
 MUTATOR_HOOKFUNCTION(mutator_instagib, PlayerSpawn)
@@ -248,14 +253,13 @@ MUTATOR_HOOKFUNCTION(mutator_instagib, PlayerPowerups)
 	}
 }
 
-.float stat_sv_maxspeed;
-
-MUTATOR_HOOKFUNCTION(mutator_instagib, PlayerPhysics)
+MUTATOR_HOOKFUNCTION(mutator_instagib, PlayerPhysics_UpdateStats)
 {
 	entity player = M_ARGV(0, entity);
+	// these automatically reset, no need to worry
 
 	if(player.items & ITEM_Speed.m_itemid)
-		player.stat_sv_maxspeed = player.stat_sv_maxspeed * autocvar_g_instagib_speed_highspeed;
+		STAT(MOVEVARS_HIGHSPEED, player) *= autocvar_g_instagib_speed_highspeed;
 }
 
 MUTATOR_HOOKFUNCTION(mutator_instagib, PlayerDamage_SplitHealthArmor)
@@ -387,7 +391,7 @@ void replace_with_insta_cells(entity item)
 {
 	entity e = new(item_vaporizer_cells);
 	setorigin(e, item.origin);
-	e.noalign = item.noalign;
+	e.noalign = Item_ShouldKeepPosition(item);
 	e.cnt = item.cnt;
 	e.team = item.team;
 	e.spawnfunc_checked = true;

@@ -418,7 +418,7 @@ void weapon_thinkf(entity actor, .entity weaponentity, WFRAME fr, float t, void(
 
 bool forbidWeaponUse(entity player)
 {
-	if (time < game_starttime && !autocvar_sv_ready_restart_after_countdown) return true;
+	if (time < game_starttime && !sv_ready_restart_after_countdown) return true;
 	if (player.player_blocked) return true;
 	if (game_stopped) return true;
 	if (STAT(FROZEN, player)) return true;
@@ -472,6 +472,8 @@ void W_WeaponFrame(Player actor, .entity weaponentity)
 
 	if (this.m_switchweapon == WEP_Null)
 	{
+		if (this.state != WS_CLEAR)
+			w_ready(this.m_weapon, actor, weaponentity, button_atck | (button_atck2 << 1));
 		this.m_weapon = WEP_Null;
 		this.m_switchingweapon = WEP_Null;
 		this.state = WS_CLEAR;
@@ -574,7 +576,7 @@ void W_WeaponFrame(Player actor, .entity weaponentity)
 				key_pressed = false;
 
 			Weapon off = actor.offhand;
-			if (off && !(actor.weapons & WEPSET(HOOK)))
+			if (off && (!(actor.weapons & WEPSET(HOOK)) || off != OFFHAND_HOOK))
 			{
 				if (off.offhand_think) off.offhand_think(off, actor, key_pressed);
 			}

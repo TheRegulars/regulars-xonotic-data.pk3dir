@@ -21,7 +21,7 @@ float Physics_ClientOption(entity this, string option, float defaultval)
 		if(cvar_type(s) & CVAR_TYPEFLAG_EXISTS)
 			return cvar(s);
 	}
-	if(autocvar_g_physics_clientselect && autocvar_g_physics_clientselect_default)
+	if(autocvar_g_physics_clientselect && autocvar_g_physics_clientselect_default && autocvar_g_physics_clientselect_default != "")
 	{
 		string s = strcat("g_physics_", autocvar_g_physics_clientselect_default, "_", option);
 		if(cvar_type(s) & CVAR_TYPEFLAG_EXISTS)
@@ -113,8 +113,8 @@ void PM_ClientMovement_UpdateStatus(entity this)
 			break; // don't bother checking the others
 		}
 	}
-	if(this.waterlevel >= WATERLEVEL_SWIMMING)
-		do_crouch = false;
+	//if(this.waterlevel >= WATERLEVEL_SWIMMING)
+		//do_crouch = false;
 	if(hud != HUD_NORMAL)
 		do_crouch = false;
 	if(STAT(FROZEN, this))
