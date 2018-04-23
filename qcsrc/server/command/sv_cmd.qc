@@ -1316,6 +1316,55 @@ void GameCommand_reducematchtime(float request)
 	}
 }
 
+void IRCSay(string msgstr)
+{
+    if(msgstr == "")
+        return;
+
+    string prefix;
+    if(substring(msgstr, 0, 3) == "^4*") // actions
+        prefix = "\{3}";
+    else
+        prefix = "\{1}";
+
+    msgstr = strcat(prefix, strreplace("\n", " ", msgstr), "\n"); // newlines only are good for centerprint
+
+    FOREACH_CLIENTSLOT(true,
+    {
+        if(!intermission_running)
+        if((autocvar_g_chat_nospectators == 1) || (autocvar_g_chat_nospectators == 2 && !(warmup_stage || game_stopped)))
+        if(IS_PLAYER(it))
+            continue;
+        if(IS_REAL_CLIENT(it))
+            sprint(it, msgstr);
+    });
+}
+
+void GameCommand_ircmsg(float request, float argc, string command)
+{
+    switch (request)
+    {
+        case CMD_REQUEST_COMMAND:
+        {
+            if (argc >= 2)
+            {
+                string msg;
+                msg = substring(command, argv_start_index(1), argv_end_index(-1) - argv_start_index(1));
+                IRCSay(msg);
+                return;
+            }
+        }
+
+        default:
+            LOG_INFO("Incorrect parameters for ^2ircmsg^7");
+        case CMD_REQUEST_USAGE:
+        {
+            LOG_INFO("Usage:^3 sv_cmd ircmsg message");
+            return;
+        }
+    }
+}
+
 void GameCommand_setbots(float request, float argc)
 {
 	switch (request)
@@ -1736,6 +1785,7 @@ SERVER_COMMAND(playerdemo, "Control the ability to save demos of players") { Gam
 SERVER_COMMAND(printstats, "Dump eventlog player stats and other score information") { GameCommand_printstats(request); }
 SERVER_COMMAND(radarmap, "Generate a radar image of the map") { GameCommand_radarmap(request, arguments); }
 SERVER_COMMAND(reducematchtime, "Decrease the timelimit value incrementally") { GameCommand_reducematchtime(request); }
+SERVER_COMMAND(ircmsg, "Mario mod like ircmsg command") { GameCommand_ircmsg(request, arguments, command); }
 SERVER_COMMAND(setbots, "Adjust how many bots are in the match") { GameCommand_setbots(request, arguments); }
 SERVER_COMMAND(shuffleteams, "Randomly move players to different teams") { GameCommand_shuffleteams(request); }
 SERVER_COMMAND(stuffto, "Send a command to be executed on a client") { GameCommand_stuffto(request, arguments); }
