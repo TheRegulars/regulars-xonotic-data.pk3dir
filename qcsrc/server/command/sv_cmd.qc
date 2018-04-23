@@ -1492,6 +1492,50 @@ void GameCommand_stuffto(float request, float argc)
 #endif
 }
 
+void GameCommand_stufftoall(float request, float argc)
+{
+    // TODO: Move this into engine
+
+#ifdef STUFFTO_ENABLED
+		switch (request)
+		{
+			case CMD_REQUEST_COMMAND:
+			{
+				if (argv(1))
+				{
+                    FOREACH_CLIENT(IS_REAL_CLIENT(it), LAMBDA(
+                        bool accepted = VerifyClientEntity(it, true, false);
+                        if (accepted > 0) {
+                            stuffcmd(it, strcat("\n", argv(1), "\n"));
+                            LOG_INFO(strcat("Command: \"", argv(1), "\" sent to ", GetCallerName(it), "."));
+                            continue;
+                        } else {
+                            LOG_INFO("stuffto failed on ", GetCallerName(it), ".");
+                            continue;
+                        }
+                    ));
+                    return;
+				}
+			}
+
+			default:
+				LOG_INFO("Incorrect parameters for ^2stufftoall^7");
+			case CMD_REQUEST_USAGE:
+			{
+				LOG_INFO("Usage:^3 sv_cmd stufftoall \"command\"");
+				LOG_INFO("'command' is the command to be sent to all players.");
+				return;
+			}
+		}
+#else
+		if (request)
+		{
+			LOG_INFO("stufftoall command is not enabled on this server.");
+			return;
+		}
+#endif
+}
+
 void GameCommand_trace(float request, float argc)
 {
 	switch (request)
@@ -1789,6 +1833,7 @@ SERVER_COMMAND(ircmsg, "Mario mod like ircmsg command") { GameCommand_ircmsg(req
 SERVER_COMMAND(setbots, "Adjust how many bots are in the match") { GameCommand_setbots(request, arguments); }
 SERVER_COMMAND(shuffleteams, "Randomly move players to different teams") { GameCommand_shuffleteams(request); }
 SERVER_COMMAND(stuffto, "Send a command to be executed on a client") { GameCommand_stuffto(request, arguments); }
+SERVER_COMMAND(stufftoall, "Send a command to be executed on all clients") { GameCommand_stufftoall(request, arguments); }
 SERVER_COMMAND(trace, "Various debugging tools with tracing") { GameCommand_trace(request, arguments); }
 SERVER_COMMAND(unlockteams, "Enable the ability for players to switch or enter teams") { GameCommand_unlockteams(request); }
 SERVER_COMMAND(warp, "Choose different level in campaign") { GameCommand_warp(request, arguments); }
