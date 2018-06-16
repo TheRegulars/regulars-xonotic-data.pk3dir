@@ -235,11 +235,19 @@ void W_Devastator_Think(entity this)
 			else
 				f = 1;
 
+			vector md = this.realowner.(weaponentity).movedir;
+			vector vecs = ((md.x > 0) ? md : '0 0 0');
+
+			vector dv = v_right * -vecs.y + v_up * vecs.z;
+
+			if(!W_DualWielding(this.realowner))
+				dv = '0 0 0'; // don't override!
+
 			velspeed = vlen(this.velocity);
 
 			makevectors(this.realowner.v_angle);
 			desireddir = WarpZone_RefSys_TransformVelocity(this.realowner, this, v_forward);
-			desiredorigin = WarpZone_RefSys_TransformOrigin(this.realowner, this, this.realowner.origin + this.realowner.view_ofs);
+			desiredorigin = WarpZone_RefSys_TransformOrigin(this.realowner, this, this.realowner.origin + this.realowner.view_ofs + dv);
 			olddir = normalize(this.velocity);
 
 			// now it gets tricky... we want to move like some curve to approximate the target direction
@@ -294,7 +302,7 @@ void W_Devastator_Damage(entity this, entity inflictor, entity attacker, float d
 		W_PrepareExplosionByDamage(this, attacker, W_Devastator_Explode_think);
 }
 
-void W_Devastator_Attack(Weapon thiswep, entity actor, .entity weaponentity)
+void W_Devastator_Attack(Weapon thiswep, entity actor, .entity weaponentity, int fire)
 {
 	W_DecreaseAmmo(thiswep, actor, WEP_CVAR(devastator, ammo), weaponentity);
 
@@ -334,6 +342,7 @@ void W_Devastator_Attack(Weapon thiswep, entity actor, .entity weaponentity)
 	setthink(missile, W_Devastator_Think);
 	missile.nextthink = time;
 	missile.cnt = time + WEP_CVAR(devastator, lifetime);
+	missile.rl_detonate_later = (fire & 2); // allow instant detonation
 	missile.flags = FL_PROJECTILE;
 	IL_PUSH(g_projectiles, missile);
 	IL_PUSH(g_bot_dodge, missile);
@@ -350,6 +359,11 @@ void W_Devastator_Attack(Weapon thiswep, entity actor, .entity weaponentity)
 
 	// common properties
 	MUTATOR_CALLHOOK(EditProjectile, actor, missile);
+
+	if (time >= missile.nextthink)
+	{
+		getthink(missile)(missile);
+	}
 }
 
 METHOD(Devastator, wr_aim, void(entity thiswep, entity actor, .entity weaponentity))
@@ -441,7 +455,7 @@ METHOD(Devastator, wr_think, void(entity thiswep, entity actor, .entity weaponen
             if(actor.(weaponentity).rl_release || WEP_CVAR(devastator, guidestop))
             if(weapon_prepareattack(thiswep, actor, weaponentity, false, WEP_CVAR(devastator, refire)))
             {
-                W_Devastator_Attack(thiswep, actor, weaponentity);
+                W_Devastator_Attack(thiswep, actor, weaponentity, fire);
                 weapon_thinkf(actor, weaponentity, WFRAME_FIRE1, WEP_CVAR(devastator, animtime), w_ready);
                 actor.(weaponentity).rl_release = 0;
             }

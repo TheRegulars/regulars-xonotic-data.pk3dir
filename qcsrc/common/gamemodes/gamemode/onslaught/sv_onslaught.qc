@@ -949,22 +949,22 @@ void ons_GeneratorDamage(entity this, entity inflictor, entity attacker, float d
 void ons_GeneratorThink(entity this)
 {
 	this.nextthink = time + GEN_THINKRATE;
-	if (!game_stopped)
+
+	if (game_stopped || this.isshielded || time < this.wait)
+		return;
+
+	this.wait = time + 5;
+	FOREACH_CLIENT(IS_PLAYER(it) && IS_REAL_CLIENT(it),
 	{
-		if(!this.isshielded && this.wait < time)
+		if (SAME_TEAM(it, this))
 		{
-			this.wait = time + 5;
-			FOREACH_CLIENT(IS_PLAYER(it) && IS_REAL_CLIENT(it), {
-				if(SAME_TEAM(it, this))
-				{
-					Send_Notification(NOTIF_ONE, it, MSG_CENTER, CENTER_ONS_NOTSHIELDED_TEAM);
-					soundto(MSG_ONE, it, CHAN_AUTO, SND(KH_ALARM), VOL_BASE, ATTEN_NONE);    // FIXME: unique sound?
-				}
-				else
-					Send_Notification(NOTIF_ONE, it, MSG_CENTER, APP_TEAM_NUM(this.team, CENTER_ONS_NOTSHIELDED));
-			});
+			Send_Notification(NOTIF_ONE, it, MSG_CENTER, CENTER_ONS_NOTSHIELDED_TEAM);
+			msg_entity = it;
+			soundto(MSG_ONE, this, CHAN_AUTO, SND(KH_ALARM), VOL_BASE, ATTEN_NONE); // FIXME: unique sound?
 		}
-	}
+		else
+			Send_Notification(NOTIF_ONE, it, MSG_CENTER, APP_TEAM_NUM(this.team, CENTER_ONS_NOTSHIELDED));
+	});
 }
 
 void ons_GeneratorReset(entity this)
@@ -1229,7 +1229,7 @@ void havocbot_goalrating_ons_offenseitems(entity this, float ratingscale, vector
 	// Needs weapons?
 	int c = 0;
 	FOREACH(Weapons, it != WEP_Null, {
-		if(this.weapons & (it.m_wepset))
+		if(STAT(WEAPONS, this) & (it.m_wepset))
 		if(++c >= 4)
 			break;
 	});
@@ -1248,7 +1248,7 @@ void havocbot_goalrating_ons_offenseitems(entity this, float ratingscale, vector
 	{
 		// gather health and armor only
 		if (it.solid)
-		if ( ((it.health || it.armorvalue) && needarmor) || (it.weapons && needweapons ) )
+		if ( ((it.health || it.armorvalue) && needarmor) || (STAT(WEAPONS, it) && needweapons ) )
 		if (vdist(it.origin - org, <, sradius))
 		{
 			int t = it.bot_pickupevalfunc(this, it);
