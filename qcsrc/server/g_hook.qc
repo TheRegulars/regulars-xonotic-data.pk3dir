@@ -328,6 +328,7 @@ void GrapplingHookTouch(entity this, entity toucher)
 
 	if(toucher)
 		//if(toucher.move_movetype != MOVETYPE_NONE)
+		if(!(toucher.flags & FL_PROJECTILE) || toucher.classname == "nade")
 		{
 			SetMovetypeFollow(this, toucher);
 			WarpZone_RefSys_BeginAddingIncrementally(this, this.aiment);
@@ -338,15 +339,15 @@ void GrapplingHookTouch(entity this, entity toucher)
 
 void GrapplingHook_Damage(entity this, entity inflictor, entity attacker, float damage, int deathtype, .entity weaponentity, vector hitloc, vector force)
 {
-	if(this.health <= 0)
+	if(GetResourceAmount(this, RESOURCE_HEALTH) <= 0)
 		return;
 
 	if (!W_CheckProjectileDamage(inflictor.realowner, this.realowner, deathtype, -1)) // no exceptions
 		return; // g_balance_projectiledamage says to halt
 
-	this.health = this.health - damage;
+	TakeResource(this, RESOURCE_HEALTH, damage);
 
-	if (this.health <= 0)
+	if (GetResourceAmount(this, RESOURCE_HEALTH) <= 0)
 	{
 		if(attacker != this.realowner)
 		{
@@ -397,7 +398,7 @@ void FireGrapplingHook(entity actor, .entity weaponentity)
 
 	missile.effects = /*EF_FULLBRIGHT | EF_ADDITIVE |*/ EF_LOWPRECISION;
 
-	missile.health = autocvar_g_balance_grapplehook_health;//120
+	SetResourceAmountExplicit(missile, RESOURCE_HEALTH, autocvar_g_balance_grapplehook_health);
 	missile.event_damage = GrapplingHook_Damage;
 	missile.takedamage = DAMAGE_AIM;
 	missile.damageforcescale = 0;
