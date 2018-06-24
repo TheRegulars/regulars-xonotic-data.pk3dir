@@ -63,6 +63,7 @@ void accuracy_resend(entity e)
 
 void accuracy_add(entity this, int w, int fired, int hit)
 {
+    int orig_wep = w;
 	if (IS_INDEPENDENT_PLAYER(this)) return;
 	entity a = CS(this).accuracy;
 	if (!a) return;
@@ -83,7 +84,22 @@ void accuracy_add(entity this, int w, int fired, int hit)
         a.fired_time = time;
     }
 
-	if (b == accuracy_byte(a.accuracy_hit[w], a.accuracy_fired[w])) return; // no change
+    int new_b = accuracy_byte(a.accuracy_hit[w], a.accuracy_fired[w]);
+
+	if (b == new_b) return; // no change
+    if (orig_wep == WEP_VAPORIZER.m_id) {
+        int acc;
+        if (new_b == 0) {
+            acc = 0;
+        } else if (new_b == 255) {
+            acc = 1.0;
+        } else {
+            acc = (new_b - 1) / 100;
+        }
+
+        // hack to make acc look same
+        PlayerScore_Set(this, SP_ACC_VAPORIZER, acc * 100);
+    }
 	int sf = 1 << (w % 24);
 	a.SendFlags |= sf;
 	FOREACH_CLIENT(IS_SPEC(it) && it.enemy == this, { CS(it).accuracy.SendFlags |= sf; });
