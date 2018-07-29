@@ -211,6 +211,7 @@
     MSG_ANNCE_NOTIF(VOTE_ACCEPT,                N__ALWAYS, "voteaccept",        CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
     MSG_ANNCE_NOTIF(VOTE_CALL,                  N__ALWAYS, "votecall",          CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
     MSG_ANNCE_NOTIF(VOTE_FAIL,                  N__ALWAYS, "votefail",          CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
+    MSG_ANNCE_NOTIF(HEADSHOT,                   N__ALWAYS, "headshot",          CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
 
 #undef N___NEVER
 #undef N_GNTLOFF
@@ -793,6 +794,7 @@
     MSG_CENTER_NOTIF(VEHICLE_STEAL_SELF,                N_ENABLE,    0, 0, "",               CPID_VEHICLES_OTHER,    "4 0",  _("^F2Intruder detected, disabling shields!"), "")
 
     MSG_CENTER_NOTIF(WEAPON_MINELAYER_LIMIT,            N_ENABLE,    0, 1, "f1",             CPID_Null,              "0 0",  _("^BGYou cannot place more than ^F2%s^BG mines at a time"), "")
+    MSG_CENTER_NOTIF(HEADSHOT, N_ENABLE, 0, 0, "", CPID_Null, "0 0", "^F2Headshot!", "")
 
 #undef N_DISABL
 #undef N_ENABLE
@@ -975,6 +977,7 @@
     MSG_MULTI_NOTIF(WEAPON_TUBA_SUICIDE,                N_ENABLE,  NULL,           INFO_WEAPON_TUBA_SUICIDE,               CENTER_DEATH_SELF_GENERIC)
     MSG_MULTI_NOTIF(WEAPON_VAPORIZER_MURDER,            N_ENABLE,  NULL,           INFO_WEAPON_VAPORIZER_MURDER,           NULL)
     MSG_MULTI_NOTIF(WEAPON_VORTEX_MURDER,               N_ENABLE,  NULL,           INFO_WEAPON_VORTEX_MURDER,              NULL)
+    MSG_MULTI_NOTIF(HEADSHOT, N_ENABLE,  ANNCE_HEADSHOT, NULL, CENTER_HEADSHOT)
 
 #define MULTITEAM_CHOICE2(prefix, default, challow, chtype, optiona, optionb) \
     MSG_CHOICE_NOTIF_TEAM(NUM_TEAM_1, prefix##_RED, prefix, default, challow, chtype, optiona##_RED, optionb##_RED) \
