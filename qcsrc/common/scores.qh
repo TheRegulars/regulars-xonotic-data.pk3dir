@@ -87,6 +87,10 @@ REGISTER_SP(ONS_CAPS);
 
 // accuracy
 REGISTER_SP(ACC_VAPORIZER);
+// how many times player spawnkilled someone
+REGISTER_SP(SPWN_KILLS);
+// how many times player has been spawnkilled
+REGISTER_SP(SPWN_KILLED);
 #endif
 
 

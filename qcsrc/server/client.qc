@@ -72,6 +72,8 @@
 
 #include <common/mutators/mutator/overkill/oknex.qh>
 
+AUTOCVAR(g_spawnshielddynamic, float, 0.6, _("scaling factor"));
+
 STATIC_METHOD(Client, Add, void(Client this, int _team))
 {
     ClientConnect(this);
@@ -515,6 +517,17 @@ void FixPlayermodel(entity player)
 				setcolor(player, stof(autocvar_sv_defaultplayercolors));
 }
 
+float CalculateSpawnShield(entity this) {
+    if (autocvar_g_spawnshielddynamic > 0 && this.spawnkilled_series > 0) {
+        int spawnkilled = this.spawnkilled_series - 1;
+        // partial sum for series: sum(2 ^ -i)
+        float val = pow(2, -spawnkilled) * (pow(2, spawnkilled + 1) - 1);
+        return autocvar_g_spawnshieldtime + val * autocvar_g_spawnshielddynamic;
+    } else {
+        return autocvar_g_spawnshieldtime;
+    }
+}
+
 void PutPlayerInServer(entity this)
 {
 	if (this.vehicle) vehicles_exit(this.vehicle, VHEF_RELEASE);
@@ -588,7 +601,7 @@ void PutPlayerInServer(entity this)
 
 	this.items = start_items;
 
-	this.spawnshieldtime = time + autocvar_g_spawnshieldtime;
+	this.spawnshieldtime = time + CalculateSpawnShield(this);
 	this.pauserotarmor_finished = time + autocvar_g_balance_pause_armor_rot_spawn;
 	this.pauserothealth_finished = time + autocvar_g_balance_pause_health_rot_spawn;
 	this.pauserotfuel_finished = time + autocvar_g_balance_pause_fuel_rot_spawn;

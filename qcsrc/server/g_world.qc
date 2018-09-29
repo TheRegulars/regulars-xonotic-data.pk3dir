@@ -421,6 +421,7 @@ void cvar_changes_init()
 		BADCVAR("g_pinata");
 		BADCVAR("g_powerups");
 		BADCVAR("g_spawnshieldtime");
+		BADCVAR("g_spawnshielddynamic");
 		BADCVAR("g_start_delay");
 		BADCVAR("g_superspectate");
 		BADCVAR("g_tdm_teams_override");
@@ -455,6 +456,7 @@ void cvar_changes_init()
 		BADCVAR("sv_vote_call");
 		BADCVAR("sv_vote_commands");
 		BADCVAR("sv_vote_majority_factor");
+        BADCVAR("sv_spawnkill_time");
 		BADCVAR("sv_vote_master");
 		BADCVAR("sv_vote_master_commands");
 		BADCVAR("sv_vote_master_password");
