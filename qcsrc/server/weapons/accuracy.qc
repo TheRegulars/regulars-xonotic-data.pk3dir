@@ -61,33 +61,33 @@ void accuracy_resend(entity e)
 //.float hit_time;
 .float fired_time;
 
-void accuracy_add(entity this, int w, int fired, int hit)
+void accuracy_add(entity this, Weapon w, int fired, int hit)
 {
-    int orig_wep = w;
 	if (IS_INDEPENDENT_PLAYER(this)) return;
 	entity a = CS(this).accuracy;
 	if (!a) return;
 	if (!hit && !fired) return;
-	if (w == WEP_Null.m_id) return;
-	w -= WEP_FIRST;
-	int b = accuracy_byte(a.accuracy_hit[w], a.accuracy_fired[w]);
-	if (hit)    a.accuracy_hit  [w] += hit;
-	if (fired)  a.accuracy_fired[w] += fired;
+	if (w == WEP_Null) return;
+	int wepid = w.m_id;
+	wepid -= WEP_FIRST;
+	int b = accuracy_byte(a.accuracy_hit[wepid], a.accuracy_fired[wepid]);
+	if (hit)    a.accuracy_hit  [wepid] += hit;
+	if (fired)  a.accuracy_fired[wepid] += fired;
 
     if (hit && STAT(HIT_TIME, a) != time) { // only run this once per frame
-        a.accuracy_cnt_hit[w] += 1;
+        a.accuracy_cnt_hit[wepid] += 1;
         STAT(HIT_TIME, a) = time;
     }
 
     if (fired && a.fired_time != time) { // only run this once per frame
-        a.accuracy_cnt_fired[w] += 1;
+        a.accuracy_cnt_fired[wepid] += 1;
         a.fired_time = time;
     }
 
-    int new_b = accuracy_byte(a.accuracy_hit[w], a.accuracy_fired[w]);
+    int new_b = accuracy_byte(a.accuracy_hit[wepid], a.accuracy_fired[wepid]);
 
 	if (b == new_b) return; // no change
-    if (orig_wep == WEP_VAPORIZER.m_id) {
+    if (w.m_id == WEP_VAPORIZER.m_id) {
         int acc;
         if (new_b == 0) {
             acc = 0;
@@ -100,7 +100,7 @@ void accuracy_add(entity this, int w, int fired, int hit)
         // hack to make acc look same
         PlayerScore_Set(this, SP_ACC_VAPORIZER, acc * 100);
     }
-	int sf = 1 << (w % 24);
+	int sf = 1 << (wepid % 24);
 	a.SendFlags |= sf;
 	FOREACH_CLIENT(IS_SPEC(it) && it.enemy == this, { CS(it).accuracy.SendFlags |= sf; });
 }
@@ -121,12 +121,12 @@ bool accuracy_isgooddamage(entity attacker, entity targ)
 	if (mutator_check == MUT_ACCADD_INVALID) return true;
 
 	if (mutator_check != MUT_ACCADD_VALID) return false;
-	if (!IS_CLIENT(targ)) return false;
+	if (!IS_CLIENT(targ) || !IS_CLIENT(attacker)) return false;
 
 	return true;
 }
 
 bool accuracy_canbegooddamage(entity attacker)
 {
-	return !warmup_stage;
+	return !warmup_stage && IS_CLIENT(attacker);
 }

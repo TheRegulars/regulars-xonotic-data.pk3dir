@@ -54,9 +54,9 @@ void HUD_Mod_CA(vector myPos, vector mySize)
 	mod_active = 1; // required in each mod function that always shows something
 
 	int layout;
-	if(gametype == MAPINFO_TYPE_CA)
+	if(ISGAMETYPE(CA))
 		layout = autocvar_hud_panel_modicons_ca_layout;
-	else //if(gametype == MAPINFO_TYPE_FREEZETAG)
+	else //if(ISGAMETYPE(FREEZETAG))
 		layout = autocvar_hud_panel_modicons_freezetag_layout;
 	int rows, columns;
 	float aspect_ratio;
@@ -496,11 +496,16 @@ string race_status_name_prev;
 // Check if the given name already exist in race rankings? In that case, where? (otherwise return 0)
 int race_CheckName(string net_name)
 {
-	int i;
-	for (i=RANKINGS_CNT-1;i>=0;--i)
-		if(strdecolorize(grecordholder[i]) == strdecolorize(net_name))
-			return i+1;
-	return 0;
+	int rank = 0;
+	string zoned_name = strzone(strdecolorize(entcs_GetName(player_localnum)));
+	for (int i = RANKINGS_CNT - 1; i >= 0; --i)
+		if (strdecolorize(grecordholder[i]) == zoned_name)
+		{
+			rank = i + 1;
+			break;
+		}
+	strfree(zoned_name);
+	return rank;
 }
 
 void race_showTime(string text, vector pos, vector timeText_ofs, float theTime, vector textSize, float f)
@@ -528,7 +533,7 @@ void HUD_Mod_Race(vector pos, vector mySize)
 
 	// clientside personal record
 	string rr;
-	if(gametype == MAPINFO_TYPE_CTS)
+	if(ISGAMETYPE(CTS))
 		rr = CTS_RECORD;
 	else
 		rr = RACE_RECORD;

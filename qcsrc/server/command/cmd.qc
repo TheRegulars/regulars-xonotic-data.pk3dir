@@ -188,6 +188,7 @@ void ClientCommand_wpeditor(entity caller, int request, int argc)
 						sprint(caller, "ERROR: this command works only if you are player\n");
 					else
 						waypoint_spawn_fromeditor(caller);
+					return;
 				}
 				else if (argv(1) == "remove")
 				{
@@ -195,6 +196,7 @@ void ClientCommand_wpeditor(entity caller, int request, int argc)
 						sprint(caller, "ERROR: this command works only if you are player\n");
 					else
 						waypoint_remove_fromeditor(caller);
+					return;
 				}
 				else if (argv(1) == "unreachable")
 				{
@@ -202,13 +204,34 @@ void ClientCommand_wpeditor(entity caller, int request, int argc)
 						sprint(caller, "ERROR: this command works only if you are player\n");
 					else
 						waypoint_unreachable(caller);
+					return;
 				}
 				else if (argv(1) == "saveall")
+				{
 					waypoint_saveall();
+					return;
+				}
 				else if (argv(1) == "relinkall")
+				{
 					waypoint_schedulerelinkall();
-
-				return;
+					return;
+				}
+				else if (argv(1) == "symaxis")
+				{
+					if (argv(2) == "set" || argv(2) == "get")
+					{
+						waypoint_getSymmetricalAxis_cmd(caller, (argv(2) == "set"), 3);
+						return;
+					}
+				}
+				else if (argv(1) == "symorigin")
+				{
+					if (argv(2) == "set" || argv(2) == "get")
+					{
+						waypoint_getSymmetricalOrigin_cmd(caller, (argv(2) == "set"), 3);
+						return;
+					}
+				}
 			}
 		}
 
@@ -217,7 +240,13 @@ void ClientCommand_wpeditor(entity caller, int request, int argc)
 		case CMD_REQUEST_USAGE:
 		{
 			sprint(caller, "\nUsage:^3 cmd wpeditor action\n");
-			sprint(caller, "  Where 'action' can be: spawn, remove, unreachable, saveall, relinkall\n");
+			sprint(caller, "  Where 'action' can be: spawn, remove, unreachable, saveall, relinkall,\n");
+			sprint(caller, "   symorigin get|set\n");
+			sprint(caller, "   symorigin get|set p1 p2 ... pX\n");
+			sprint(caller, "   symaxis get|set p1 p2\n");
+			sprint(caller, "    where p1 p2 ... pX are positions \"x y z\" (z can be omitted)\n");
+			sprint(caller, " symorigin and symaxis commands are useful to determine origin/axis of symmetry"
+							" on maps without ctf flags or where flags aren't perfectly symmetrical\n");
 			return;
 		}
 	}
@@ -241,6 +270,36 @@ void ClientCommand_join(entity caller, int request)
 		case CMD_REQUEST_USAGE:
 		{
 			sprint(caller, "\nUsage:^3 cmd join\n");
+			sprint(caller, "  No arguments required.\n");
+			return;
+		}
+	}
+}
+
+void ClientCommand_kill(entity caller, int request)
+{
+	switch (request)
+	{
+		case CMD_REQUEST_COMMAND:
+		{
+			if(IS_SPEC(caller) || IS_OBSERVER(caller))
+				return; // no point warning about this, command does nothing
+
+			if(GetResourceAmount(caller, RESOURCE_HEALTH) <= 0)
+			{
+				sprint(caller, "Can't die - you are already dead!\n");
+				return;
+			}
+
+			ClientKill(caller);
+
+			return;  // never fall through to usage
+		}
+
+		default:
+		case CMD_REQUEST_USAGE:
+		{
+			sprint(caller, "\nUsage:^3 cmd kill\n");
 			sprint(caller, "  No arguments required.\n");
 			return;
 		}
@@ -730,6 +789,7 @@ void ClientCommand_(entity caller, int request)
 	CLIENT_COMMAND("autoswitch", ClientCommand_autoswitch(ent, request, arguments), "Whether or not to switch automatically when getting a better weapon") \
 	CLIENT_COMMAND("clientversion", ClientCommand_clientversion(ent, request, arguments), "Release version of the game") \
 	CLIENT_COMMAND("join", ClientCommand_join(ent, request), "Become a player in the game") \
+	CLIENT_COMMAND("kill", ClientCommand_kill(ent, request), "Become a member of the dead") \
 	CLIENT_COMMAND("minigame", ClientCommand_minigame(ent, request, arguments, command), "Start a minigame") \
 	CLIENT_COMMAND("mv_getpicture", ClientCommand_mv_getpicture(ent, request, arguments), "Retrieve mapshot picture from the server") \
 	CLIENT_COMMAND("physics", ClientCommand_physics(ent, request, arguments), "Change physics set") \
