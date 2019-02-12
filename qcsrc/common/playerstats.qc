@@ -279,6 +279,7 @@ void PlayerStats_GameReport_Handler(entity fh, entity pass, float status)
 	string e, en;
 	string nn, tt;
 	string s;
+    int i;
 
 	switch(status)
 	{
@@ -347,8 +348,14 @@ void PlayerStats_GameReport_Handler(entity fh, entity pass, float status)
 					url_fputs(fh, sprintf("Q team#%s\n", t));
 
 					// output team events // todo: does this do unnecessary loops? perhaps we should do a separate "team_events_last" tracker..."
-					for(e = PS_GR_OUT_EVL; (en = db_get(PS_GR_OUT_DB, sprintf("*:%s", e))) != ""; e = en)
+                    i = 0;
+					for(e = PS_GR_OUT_EVL; (en = db_get(PS_GR_OUT_DB, sprintf("*:%s", e))) != ""; e = en, i++)
 					{
+                        if (i > 500) {
+                            LOG_INFO("^1Something wrong in xon stats\n");
+                            LOG_INFOF("e: %s, en: %s\n", e, en);
+                            break;
+                        }
 						float v = stof(db_get(PS_GR_OUT_DB, sprintf("team#%d:%s", stof(t), e)));
 						if(v != 0) { url_fputs(fh, sprintf("e %s %g\n", e, v)); }
 					}
