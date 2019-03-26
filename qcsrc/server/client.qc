@@ -72,7 +72,7 @@
 
 #include <common/mutators/mutator/overkill/oknex.qh>
 
-AUTOCVAR(g_spawnshielddynamic, float, 0.6, _("scaling factor"));
+AUTOCVAR(g_spawnshielddynamic, float, 0, _("scaling factor"));
 
 STATIC_METHOD(Client, Add, void(Client this, int _team))
 {
