@@ -14,6 +14,7 @@ const float HOOK_PULLING = BIT(2);
 const float HOOK_RELEASING = BIT(3);
 const float HOOK_WAITING_FOR_RELEASE = BIT(4);
 .float hook_state;
+.float hook_start_time_hack;
 
 void GrappleHookInit();
 vector hook_shotorigin[4];

@@ -4,6 +4,11 @@
 
 void W_Blaster_Touch(entity this, entity toucher)
 {
+    if (toucher && toucher.classname == "grapplinghook" && toucher.realowner == this.realowner) {
+        delete(this);
+        return;
+    }
+
 	PROJECTILE_TOUCH(this, toucher);
 
 	this.event_damage = func_null;

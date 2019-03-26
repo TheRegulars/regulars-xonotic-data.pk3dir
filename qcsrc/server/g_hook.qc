@@ -160,6 +160,11 @@ void GrapplingHookThink(entity this)
 		error("Owner lost the hook!\n");
 		return;
 	}
+    if (this.hook_start_time_hack >= 0 && (time - this.hook_start_time_hack) > 0.07) {
+        this.dphitcontentsmask |= DPCONTENTS_CORPSE;
+        this.hook_start_time_hack = -1;
+    }
+
 	if(LostMovetypeFollow(this) || game_stopped || (round_handler_IsActive() && !round_handler_IsRoundStarted()) || ((this.aiment.flags & FL_PROJECTILE) && this.aiment.classname != "nade"))
 	{
 		RemoveHook(this);
@@ -320,6 +325,7 @@ void GrapplingHookThink(entity this)
 
 void GrapplingHookTouch(entity this, entity toucher)
 {
+
 	if(toucher.move_movetype == MOVETYPE_FOLLOW)
 		return;
 	PROJECTILE_TOUCH(this, toucher);
@@ -379,6 +385,8 @@ void FireGrapplingHook(entity actor, .entity weaponentity)
 
 	set_movetype(missile, ((autocvar_g_balance_grapplehook_gravity) ? MOVETYPE_TOSS : MOVETYPE_FLY));
 	PROJECTILE_MAKETRIGGER(missile);
+    missile.dphitcontentsmask = DPCONTENTS_SOLID | DPCONTENTS_BODY;
+    missile.hook_start_time_hack = time;
 
 	//setmodel (missile, MDL_HOOK); // precision set below
 	setsize (missile, '-3 -3 -3', '3 3 3');
