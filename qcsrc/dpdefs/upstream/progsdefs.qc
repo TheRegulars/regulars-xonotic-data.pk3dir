@@ -504,4 +504,5 @@ void(entity e) setspawnparms		= #78;		// set parm1... to the
 												// values at level start
 												// for coop respawn
 
+string(string s, float teams) balanceteams = #370; // team balancing algorithm
 //============================================================================
