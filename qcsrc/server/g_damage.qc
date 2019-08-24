@@ -74,8 +74,6 @@ void GiveFrags(entity attacker, entity targ, float f, int deathtype, .entity wea
 		UpdateFrags(attacker, f);
 }
 
-.entity kh_next;
-
 string AppendItemcodes(string s, entity player)
 {
 	for(int slot = 0; slot < MAX_WEAPONSLOTS; ++slot)
@@ -91,12 +89,11 @@ string AppendItemcodes(string s, entity player)
 		s = strcat(s, "S");
 	if(time < player.invincible_finished)
 		s = strcat(s, "I");
-	if(player.flagcarried != NULL)
-		s = strcat(s, "F");
 	if(PHYS_INPUT_BUTTON_CHAT(player))
 		s = strcat(s, "T");
-	if(player.kh_next)
-		s = strcat(s, "K");
+	// TODO: include these codes as a flag on the item itself
+	MUTATOR_CALLHOOK(LogDeath_AppendItemCodes, player, s);
+	s = M_ARGV(1, string);
 	return s;
 }
 
@@ -216,7 +213,7 @@ bool frag_centermessage_override(entity attacker, entity targ, int deathtype, in
 	if(deathtype == DEATH_FIRE.m_id)
 	{
 		Send_Notification(NOTIF_ONE, attacker, MSG_CHOICE, CHOICE_FRAG_FIRE, targ.netname, kill_count_to_attacker, (IS_BOT_CLIENT(targ) ? -1 : CS(targ).ping));
-		Send_Notification(NOTIF_ONE, targ, MSG_CHOICE, CHOICE_FRAGGED_FIRE, attacker.netname, kill_count_to_target, GetResourceAmount(attacker, RESOURCE_HEALTH), GetResourceAmount(attacker, RESOURCE_ARMOR), (IS_BOT_CLIENT(attacker) ? -1 : CS(attacker).ping));
+		Send_Notification(NOTIF_ONE, targ, MSG_CHOICE, CHOICE_FRAGGED_FIRE, attacker.netname, kill_count_to_target, GetResource(attacker, RES_HEALTH), GetResource(attacker, RES_ARMOR), (IS_BOT_CLIENT(attacker) ? -1 : CS(attacker).ping));
 		return true;
 	}
 
@@ -321,14 +318,11 @@ void Obituary(entity attacker, entity inflictor, entity targ, int deathtype, .en
 			// these 2 macros are spread over multiple files
 			#define SPREE_ITEM(counta,countb,center,normal,gentle) \
 				case counta: \
-				{ \
 					Send_Notification(NOTIF_ONE, attacker, MSG_ANNCE, ANNCE_KILLSTREAK_##countb); \
-					if (!warmup_stage)\
-					{\
+					if (!warmup_stage) \
 						PlayerStats_GameReport_Event_Player(attacker, PLAYERSTATS_ACHIEVEMENT_KILL_SPREE_##counta, 1); \
-					}\
-					break; \
-				}
+					break;
+
 			switch(CS(attacker).killcount)
 			{
 				KILL_SPREE_LIST
@@ -371,8 +365,8 @@ void Obituary(entity attacker, entity inflictor, entity targ, int deathtype, .en
 					CHOICE_TYPEFRAGGED,
 					attacker.netname,
 					kill_count_to_target,
-					GetResourceAmount(attacker, RESOURCE_HEALTH),
-					GetResourceAmount(attacker, RESOURCE_ARMOR),
+					GetResource(attacker, RES_HEALTH),
+					GetResource(attacker, RES_ARMOR),
 					(IS_BOT_CLIENT(attacker) ? -1 : CS(attacker).ping)
 				);
 			}
@@ -394,8 +388,8 @@ void Obituary(entity attacker, entity inflictor, entity targ, int deathtype, .en
 					CHOICE_FRAGGED,
 					attacker.netname,
 					kill_count_to_target,
-					GetResourceAmount(attacker, RESOURCE_HEALTH),
-					GetResourceAmount(attacker, RESOURCE_ARMOR),
+					GetResource(attacker, RES_HEALTH),
+					GetResource(attacker, RES_ARMOR),
 					(IS_BOT_CLIENT(attacker) ? -1 : CS(attacker).ping)
 				);
 			}
@@ -490,7 +484,7 @@ void Freeze(entity targ, float revivespeed, int frozen_type, bool show_waypoint)
 
 	STAT(FROZEN, targ) = frozen_type;
 	STAT(REVIVE_PROGRESS, targ) = ((frozen_type == FROZEN_TEMP_DYING) ? 1 : 0);
-	SetResourceAmount(targ, RESOURCE_HEALTH, ((frozen_type == FROZEN_TEMP_DYING) ? targ_maxhealth : 1));
+	SetResource(targ, RES_HEALTH, ((frozen_type == FROZEN_TEMP_DYING) ? targ_maxhealth : 1));
 	targ.revive_speed = revivespeed;
 	if(targ.bot_attack)
 		IL_REMOVE(g_bot_targets, targ);
@@ -535,7 +529,7 @@ void Unfreeze(entity targ, bool reset_health)
 		return;
 
 	if (reset_health && STAT(FROZEN, targ) != FROZEN_TEMP_DYING)
-		SetResourceAmount(targ, RESOURCE_HEALTH, ((IS_PLAYER(targ)) ? start_health : targ.max_health));
+		SetResource(targ, RES_HEALTH, ((IS_PLAYER(targ)) ? start_health : targ.max_health));
 
 	targ.pauseregen_finished = time + autocvar_g_balance_pause_health_regen;
 
@@ -595,9 +589,9 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, int de
 		// These are ALWAYS lethal
 		// No damage modification here
 		// Instead, prepare the victim for his death...
-		SetResourceAmountExplicit(targ, RESOURCE_ARMOR, 0);
+		SetResourceExplicit(targ, RES_ARMOR, 0);
 		targ.spawnshieldtime = 0;
-		SetResourceAmountExplicit(targ, RESOURCE_HEALTH, 0.9); // this is < 1
+		SetResourceExplicit(targ, RES_HEALTH, 0.9); // this is < 1
 		targ.flags -= targ.flags & FL_GODMODE;
 		damage = 100000;
 	}
@@ -638,7 +632,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, int de
 
 							if(autocvar_g_mirrordamage_virtual)
 							{
-								vector v  = healtharmor_applydamage(GetResourceAmount(attacker, RESOURCE_ARMOR), autocvar_g_balance_armor_blockpercent, deathtype, mirrordamage);
+								vector v  = healtharmor_applydamage(GetResource(attacker, RES_ARMOR), autocvar_g_balance_armor_blockpercent, deathtype, mirrordamage);
 								attacker.dmg_take += v.x;
 								attacker.dmg_save += v.y;
 								attacker.dmg_inflictor = inflictor;
@@ -648,7 +642,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, int de
 
 							if(autocvar_g_friendlyfire_virtual)
 							{
-								vector v = healtharmor_applydamage(GetResourceAmount(targ, RESOURCE_ARMOR), autocvar_g_balance_armor_blockpercent, deathtype, damage);
+								vector v = healtharmor_applydamage(GetResource(targ, RES_ARMOR), autocvar_g_balance_armor_blockpercent, deathtype, damage);
 								targ.dmg_take += v.x;
 								targ.dmg_save += v.y;
 								targ.dmg_inflictor = inflictor;
@@ -694,7 +688,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, int de
 			if(autocvar_g_frozen_revive_falldamage > 0 && deathtype == DEATH_FALL.m_id && damage >= autocvar_g_frozen_revive_falldamage)
 			{
 				Unfreeze(targ, false);
-				SetResourceAmount(targ, RESOURCE_HEALTH, autocvar_g_frozen_revive_falldamage_health);
+				SetResource(targ, RES_HEALTH, autocvar_g_frozen_revive_falldamage_health);
 				Send_Effect(EFFECT_ICEORGLASS, targ.origin, '0 0 0', 3);
 				Send_Notification(NOTIF_ALL, NULL, MSG_INFO, INFO_FREEZETAG_REVIVED_FALL, targ.netname);
 				Send_Notification(NOTIF_ONE, targ, MSG_CENTER, CENTER_FREEZETAG_REVIVE_SELF);
@@ -868,7 +862,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, int de
 }
 
 float RadiusDamageForSource (entity inflictor, vector inflictororigin, vector inflictorvelocity, entity attacker, float coredamage, float edgedamage, float rad, entity cantbe, entity mustbe,
-								float inflictorselfdamage, float forceintensity, int deathtype, .entity weaponentity, entity directhitentity)
+								float inflictorselfdamage, float forceintensity, float forcezscale, int deathtype, .entity weaponentity, entity directhitentity)
 	// Returns total damage applies to creatures
 {
 	entity	targ;
@@ -955,8 +949,10 @@ float RadiusDamageForSource (entity inflictor, vector inflictororigin, vector in
 					force = force * (finaldmg / coredamage) * forceintensity;
 					hitloc = nearest;
 
-					if(deathtype & WEP_BLASTER.m_id)
-						force *= WEP_CVAR_BOTH(blaster, !(deathtype & HITTYPE_SECONDARY), force_zscale);
+					// apply special scaling along the z axis if set
+					// NOTE: 0 value is not allowed for compatibility, in the case of weapon cvars not being set
+					if(forcezscale)
+						force.z *= forcezscale;
 
 					if(targ != directhitentity)
 					{
@@ -1059,7 +1055,8 @@ float RadiusDamageForSource (entity inflictor, vector inflictororigin, vector in
 
 float RadiusDamage(entity inflictor, entity attacker, float coredamage, float edgedamage, float rad, entity cantbe, entity mustbe, float forceintensity, int deathtype, .entity weaponentity, entity directhitentity)
 {
-	return RadiusDamageForSource(inflictor, (inflictor.origin + (inflictor.mins + inflictor.maxs) * 0.5), inflictor.velocity, attacker, coredamage, edgedamage, rad, cantbe, mustbe, false, forceintensity, deathtype, weaponentity, directhitentity);
+	return RadiusDamageForSource(inflictor, (inflictor.origin + (inflictor.mins + inflictor.maxs) * 0.5), inflictor.velocity, attacker, coredamage, edgedamage, rad, 
+									cantbe, mustbe, false, forceintensity, 1, deathtype, weaponentity, directhitentity);
 }
 
 bool Heal(entity targ, entity inflictor, float amount, float limit)

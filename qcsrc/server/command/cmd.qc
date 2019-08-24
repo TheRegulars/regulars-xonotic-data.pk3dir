@@ -285,7 +285,7 @@ void ClientCommand_kill(entity caller, int request)
 			if(IS_SPEC(caller) || IS_OBSERVER(caller))
 				return; // no point warning about this, command does nothing
 
-			if(GetResourceAmount(caller, RESOURCE_HEALTH) <= 0)
+			if(GetResource(caller, RES_HEALTH) <= 0)
 			{
 				sprint(caller, "Can't die - you are already dead!\n");
 				return;
@@ -328,7 +328,7 @@ void ClientCommand_physics(entity caller, int request, int argc)
 
 			if (Physics_Valid(command) || command == "default")
 			{
-				stuffcmd(caller, strcat("\nseta cl_physics ", command, "\nsendcvar cl_physics\n"));
+				stuffcmd(caller, strcat("\nseta cl_physics ", command, "\n"));
 				sprint(caller, strcat("^2Physics set successfully changed to ^3", command, "\n"));
 				return;
 			}
