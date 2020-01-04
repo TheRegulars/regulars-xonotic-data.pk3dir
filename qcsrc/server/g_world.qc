@@ -360,6 +360,7 @@ void cvar_changes_init()
 		BADCVAR("sv_damagetext");
 		BADCVAR("sv_db_saveasdump");
 		BADCVAR("sv_intermission_cdtrack");
+		BADCVAR("sv_mapchange_delay");
 		BADCVAR("sv_minigames");
 		BADCVAR("sv_namechangetimer");
 		BADCVAR("sv_precacheplayermodels");
@@ -2263,7 +2264,7 @@ void Shutdown()
 			else
 				db_save(ServerProgsDB, strcat("server.db", autocvar_sessionid));
 		}
-		if(autocvar_developer)
+		if(autocvar_developer > 0)
 		{
 			if(autocvar_sv_db_saveasdump)
 				db_dump(TemporaryDB, "server-temp.db");
