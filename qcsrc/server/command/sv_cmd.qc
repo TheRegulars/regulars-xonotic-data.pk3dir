@@ -1600,6 +1600,58 @@ void GameCommand_elorebalance(int request)
     }
 }
 
+void GameCommand_avgscores(int request)
+{
+        float score = 0;
+		switch (request)
+		{
+			case CMD_REQUEST_COMMAND:
+            {
+                if (!teamplay)
+                {
+                    LOG_INFO("Can't avgscores teams when currently not playing a team game.");
+                    return;
+                }
+
+
+                int number_of_teams = 0;
+                entity balance = TeamBalance_CheckAllowedTeams(NULL);
+                for (int i = 1; i <= NUM_TEAMS; ++i)
+                {
+                    if (TeamBalance_IsTeamAllowed(balance, i))
+                    {
+                        number_of_teams = max(i, number_of_teams);
+                    }
+                }
+                TeamBalance_Destroy(balance);
+
+                if (number_of_teams > 1) {
+                    for (int i = 1; i <= number_of_teams; i++) {
+                        score += Team_GetTeamScore(Team_GetTeamFromIndex(i));
+                    }
+
+                    score = rint(score / number_of_teams); // round
+                    for (int i = 1; i <= number_of_teams; i++) {
+                        Team_SetTeamScore(Team_GetTeamFromIndex(i), score);
+                        entity sk = teamscorekeepers[Team_IndexToTeam(i) - 1];
+                        if (sk) {
+                            sk.(teamscores(1)) = score;
+                            sk.SendFlags = 2;
+                        }
+                    }
+                }
+                return;
+            }
+			case CMD_REQUEST_USAGE:
+			default:
+            {
+                LOG_INFO("Usage:^3 sv_cmd avgscores");
+                LOG_INFO("  No arguments required.");
+                return;
+            }
+        }
+}
+
 void GameCommand_stuffto(int request, int argc)
 {
 	// This... is a fairly dangerous and powerful command... - It allows any arguments to be sent to a client via rcon.
@@ -1993,6 +2045,7 @@ SERVER_COMMAND(setbots, "Adjust how many bots are in the match") { GameCommand_s
 SERVER_COMMAND(shuffleteams, "Randomly move players to different teams") { GameCommand_shuffleteams(request); }
 SERVER_COMMAND(rebalance, "Rebalance teams") { GameCommand_rebalance(request); }
 SERVER_COMMAND(elorebalance, "Rebalance teams") { GameCommand_elorebalance(request); }
+SERVER_COMMAND(avgscores, "Reset all scores to average") { GameCommand_avgscores(request); }
 SERVER_COMMAND(stuffto, "Send a command to be executed on a client") { GameCommand_stuffto(request, arguments); }
 SERVER_COMMAND(stufftoall, "Send a command to be executed on all clients") { GameCommand_stufftoall(request, arguments); }
 SERVER_COMMAND(trace, "Various debugging tools with tracing") { GameCommand_trace(request, arguments); }
