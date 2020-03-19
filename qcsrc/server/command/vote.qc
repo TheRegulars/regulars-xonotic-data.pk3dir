@@ -350,6 +350,16 @@ void reset_map(bool dorespawn)
 		shuffleteams();
 		shuffleteams_on_reset_map = false;
 	}
+	if (elorebalance_on_reset_map)
+	{
+		elorebalance();
+		elorebalance_on_reset_map = false;
+	}
+	if (rebalance_on_reset_map)
+	{
+		rebalance();
+		rebalance_on_reset_map = false;
+	}
 	MUTATOR_CALLHOOK(reset_map_global);
 
 	FOREACH_ENTITY_FLOAT_ORDERED(pure_data, false,

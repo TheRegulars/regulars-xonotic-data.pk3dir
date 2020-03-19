@@ -1392,91 +1392,103 @@ void GameCommand_shuffleteams(int request)
 	}
 }
 
+void rebalance()
+{
+	string bal;
+	string team1, team2, team3, team4, curteam;
+	entity p;
+	curteam = "";
+	if (!teamplay)
+	{
+		LOG_INFO("Can't rebalance teams when currently not playing a team game.");
+		return;
+	}
+
+	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+		if (Player_HasRealForcedTeam(it)) {
+			// we could theoretically assign forced players to their teams
+			// and shuffle the rest to fill the empty spots but in practise
+			// either all players or none are gonna have forced teams
+			LOG_INFO("Can't rebalance teams because at least one player has a forced team.");
+			return;
+		}
+	});
+	string players_info = "";
+	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+		// rebalance works bad with negative scores
+		float score = stof(it.clientstatus) + 30;
+		// players with 0 score still usefull for team
+		if (score < 5) {
+			score = 5;
+		}
+		players_info = sprintf("%s%d:%d,", players_info, etof(it), score);
+	});
+
+	int number_of_teams = 0;
+	entity balance = TeamBalance_CheckAllowedTeams(NULL);
+	for (int i = 1; i <= NUM_TEAMS; ++i)
+	{
+		if (TeamBalance_IsTeamAllowed(balance, i))
+		{
+			number_of_teams = max(i, number_of_teams);
+		}
+	}
+	TeamBalance_Destroy(balance);
+	bal = balanceteams(players_info, number_of_teams);
+	if (strncmp(bal, "error", 5) != 0) {
+		tokenizebyseparator(bal, ";");
+		team1 = argv(0);
+		team2 = argv(1);
+		team3 = argv(2);
+		team4 = argv(3);
+		for (int i = 0; i < 4 && i < number_of_teams; i++) {
+			switch (i) {
+				case 0:
+					curteam = team1;
+					break;
+				case 1:
+					curteam = team2;
+					break;
+				case 2:
+					curteam = team3;
+					break;
+				case 3:
+					curteam = team4;
+					break;
+			}
+			if (curteam == "") {
+				break;
+			}
+
+			// LOG_INFOF("Team: %d, score: %d", i, Team_GetTeamScore(Team_GetTeamFromIndex(i + 1)));
+			tokenizebyseparator(curteam, ",");
+			for (int j = 0; argv(j) != "" && j < 250; j++) {
+				p = ftoe(stof(argv(j)));
+				if (Entity_GetTeamIndex(p) != (i + 1)) {
+					MoveToTeam(p, i + 1, 6);
+				}
+			}
+		}
+	}
+	bprint("Successfully rebalanced the teams based on score.\n");
+}
+
 void GameCommand_rebalance(int request)
 {
-    string bal;
-    string team1, team2, team3, team4, curteam;
-    entity p;
-    curteam = "";
-    switch (request)
-    {
-        case CMD_REQUEST_COMMAND:
-        {
-			if (!teamplay)
+	switch (request)
+	{
+		case CMD_REQUEST_COMMAND:
+		{
+			if (rebalance_on_reset_map)
 			{
-				LOG_INFO("Can't rebalance teams when currently not playing a team game.");
+				bprint("Players will be rebalanced when this round is over.\n");
+				rebalance_on_reset_map = true;
+			}
+			else
+				rebalance();
 				return;
 			}
-
-			FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
-				if (Player_HasRealForcedTeam(it)) {
-					// we could theoretically assign forced players to their teams
-					// and shuffle the rest to fill the empty spots but in practise
-					// either all players or none are gonna have forced teams
-					LOG_INFO("Can't rebalance teams because at least one player has a forced team.");
-					return;
-				}
-			});
-            string players_info = "";
-			FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
-                    // rebalance works bad with negative scores
-                    float score = stof(it.clientstatus) + 30;
-                    // players with 0 score still usefull for team
-                    if (score < 5) {
-                        score = 5;
-                    }
-                    players_info = sprintf("%s%d:%d,", players_info, etof(it), score);
-			});
-
-			int number_of_teams = 0;
-			entity balance = TeamBalance_CheckAllowedTeams(NULL);
-			for (int i = 1; i <= NUM_TEAMS; ++i)
-			{
-				if (TeamBalance_IsTeamAllowed(balance, i))
-				{
-					number_of_teams = max(i, number_of_teams);
-				}
-			}
-			TeamBalance_Destroy(balance);
-            bal = balanceteams(players_info, number_of_teams);
-            if (strncmp(bal, "error", 5) != 0) {
-                tokenizebyseparator(bal, ";");
-                team1 = argv(0);
-                team2 = argv(1);
-                team3 = argv(2);
-                team4 = argv(3);
-                for (int i = 0; i < 4 && i < number_of_teams; i++) {
-                    switch (i) {
-                        case 0:
-                            curteam = team1;
-                            break;
-                        case 1:
-                            curteam = team2;
-                            break;
-                        case 2:
-                            curteam = team3;
-                            break;
-                        case 3:
-                            curteam = team4;
-                            break;
-                    }
-                    if (curteam == "") {
-                        break;
-                    }
-
-                    // LOG_INFOF("Team: %d, score: %d", i, Team_GetTeamScore(Team_GetTeamFromIndex(i + 1)));
-                    tokenizebyseparator(curteam, ",");
-                    for (int j = 0; argv(j) != "" && j < 250; j++) {
-                        p = ftoe(stof(argv(j)));
-                        if (Entity_GetTeamIndex(p) != (i + 1)) {
-                            MoveToTeam(p, i + 1, 6);
-                        }
-                    }
-                }
-            }
-            return;
-        }
-        default:
+		default:
 		case CMD_REQUEST_USAGE:
 		{
 			LOG_INFO("Usage:^3 sv_cmd rebalance");
@@ -1484,120 +1496,132 @@ void GameCommand_rebalance(int request)
 			LOG_INFO("See also: ^2shuffleteams, moveplayer^7");
 			return;
 		}
-    }
+	}
+}
+
+void elorebalance()
+{
+	string bal;
+	string team1, team2, team3, team4, curteam;
+	float average_elo, count;
+	entity p;
+	curteam = "";
+	if (!teamplay)
+	{
+		LOG_INFO("Can't rebalance teams when currently not playing a team game.");
+		return;
+	}
+
+	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+		if (Player_HasRealForcedTeam(it)) {
+			// we could theoretically assign forced players to their teams
+			// and shuffle the rest to fill the empty spots but in practise
+			// either all players or none are gonna have forced teams
+			LOG_INFO("Can't rebalance teams because at least one player has a forced team.");
+			return;
+		}
+	});
+	count = 0;
+	average_elo = 0;
+	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+		// rebalance works bad with negative scores
+		float score = PlayerScore_Get(it, SP_ELO);
+		// players with 0 score still usefull for team
+		if (score < 0) {
+			score = 0;
+		}
+		count++;
+		average_elo += score;
+	});
+	if (average_elo <= 0) {
+		LOG_INFO("Can't rebalance teams because elo isn't available for players");
+		return;
+	}
+	average_elo = average_elo / count;
+	string players_info = "";
+	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+		// rebalance works bad with negative scores
+		float score = PlayerScore_Get(it, SP_ELO);
+		// players without elo will have average elo
+		if (score <= 0) {
+			score = average_elo;
+		}
+		players_info = sprintf("%s%d:%d,", players_info, etof(it), score);
+	});
+
+	int number_of_teams = 0;
+	entity balance = TeamBalance_CheckAllowedTeams(NULL);
+	for (int i = 1; i <= NUM_TEAMS; ++i)
+	{
+		if (TeamBalance_IsTeamAllowed(balance, i))
+		{
+			number_of_teams = max(i, number_of_teams);
+		}
+	}
+	TeamBalance_Destroy(balance);
+	bal = balanceteams(players_info, number_of_teams);
+	if (strncmp(bal, "error", 5) != 0) {
+		tokenizebyseparator(bal, ";");
+		team1 = argv(0);
+		team2 = argv(1);
+		team3 = argv(2);
+		team4 = argv(3);
+		for (int i = 0; i < 4 && i < number_of_teams; i++) {
+			switch (i) {
+				case 0:
+					curteam = team1;
+					break;
+				case 1:
+					curteam = team2;
+					break;
+				case 2:
+					curteam = team3;
+					break;
+				case 3:
+					curteam = team4;
+					break;
+			}
+			if (curteam == "") {
+				break;
+			}
+
+			// LOG_INFOF("Team: %d, score: %d", i, Team_GetTeamScore(Team_GetTeamFromIndex(i + 1)));
+			tokenizebyseparator(curteam, ",");
+			for (int j = 0; argv(j) != "" && j < 250; j++) {
+				p = ftoe(stof(argv(j)));
+				if (Entity_GetTeamIndex(p) != (i + 1)) {
+					MoveToTeam(p, i + 1, 6);
+				}
+			}
+		}
+	}
+	bprint("Successfully rebalanced the teams based on elo.\n");
 }
 
 void GameCommand_elorebalance(int request)
 {
-    string bal;
-    string team1, team2, team3, team4, curteam;
-    float average_elo, count;
-    entity p;
-    curteam = "";
-    switch (request)
-    {
-        case CMD_REQUEST_COMMAND:
-        {
-			if (!teamplay)
+	switch (request)
+	{
+		case CMD_REQUEST_COMMAND:
 			{
-				LOG_INFO("Can't rebalance teams when currently not playing a team game.");
+				if (elorebalance_on_reset_map)
+				{
+					bprint("Players will be rebalanced based on elo when this round is over.\n");
+					elorebalance_on_reset_map = true;
+				}
+				else
+					elorebalance();
 				return;
 			}
-
-			FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
-				if (Player_HasRealForcedTeam(it)) {
-					// we could theoretically assign forced players to their teams
-					// and shuffle the rest to fill the empty spots but in practise
-					// either all players or none are gonna have forced teams
-					LOG_INFO("Can't rebalance teams because at least one player has a forced team.");
-					return;
-				}
-			});
-            count = 0;
-            average_elo = 0;
-			FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
-                    // rebalance works bad with negative scores
-                    float score = PlayerScore_Get(it, SP_ELO);
-                    // players with 0 score still usefull for team
-                    if (score < 0) {
-                        score = 0;
-                    }
-                    count++;
-                    average_elo += score;
-			});
-            if (average_elo <= 0) {
-                LOG_INFO("Can't rebalance teams because elo isn't available for players");
-                return;
-            }
-            average_elo = average_elo / count;
-            string players_info = "";
-			FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
-                    // rebalance works bad with negative scores
-                    float score = PlayerScore_Get(it, SP_ELO);
-                    // players without elo will have average elo
-                    if (score <= 0) {
-                        score = average_elo;
-                    }
-                    players_info = sprintf("%s%d:%d,", players_info, etof(it), score);
-			});
-
-			int number_of_teams = 0;
-			entity balance = TeamBalance_CheckAllowedTeams(NULL);
-			for (int i = 1; i <= NUM_TEAMS; ++i)
-			{
-				if (TeamBalance_IsTeamAllowed(balance, i))
-				{
-					number_of_teams = max(i, number_of_teams);
-				}
-			}
-			TeamBalance_Destroy(balance);
-            bal = balanceteams(players_info, number_of_teams);
-            if (strncmp(bal, "error", 5) != 0) {
-                tokenizebyseparator(bal, ";");
-                team1 = argv(0);
-                team2 = argv(1);
-                team3 = argv(2);
-                team4 = argv(3);
-                for (int i = 0; i < 4 && i < number_of_teams; i++) {
-                    switch (i) {
-                        case 0:
-                            curteam = team1;
-                            break;
-                        case 1:
-                            curteam = team2;
-                            break;
-                        case 2:
-                            curteam = team3;
-                            break;
-                        case 3:
-                            curteam = team4;
-                            break;
-                    }
-                    if (curteam == "") {
-                        break;
-                    }
-
-                    // LOG_INFOF("Team: %d, score: %d", i, Team_GetTeamScore(Team_GetTeamFromIndex(i + 1)));
-                    tokenizebyseparator(curteam, ",");
-                    for (int j = 0; argv(j) != "" && j < 250; j++) {
-                        p = ftoe(stof(argv(j)));
-                        if (Entity_GetTeamIndex(p) != (i + 1)) {
-                            MoveToTeam(p, i + 1, 6);
-                        }
-                    }
-                }
-            }
-            return;
-        }
-        default:
+		default:
 		case CMD_REQUEST_USAGE:
-		{
-			LOG_INFO("Usage:^3 sv_cmd elorebalance");
-			LOG_INFO("  No arguments required.");
-			LOG_INFO("See also: ^2shuffleteams, moveplayer^7");
-			return;
-		}
-    }
+			{
+				LOG_INFO("Usage:^3 sv_cmd elorebalance");
+				LOG_INFO("  No arguments required.");
+				LOG_INFO("See also: ^2shuffleteams, moveplayer^7");
+				return;
+			}
+	}
 }
 
 void GameCommand_avgscores(int request)
