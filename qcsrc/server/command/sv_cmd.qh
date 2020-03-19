@@ -6,6 +6,10 @@
 
 bool shuffleteams_on_reset_map;
 void shuffleteams();
+bool rebalance_on_reset_map;
+void rebalance();
+bool elorebalance_on_reset_map;
+void elorebalance();
 
 string GotoMap(string m);
 
