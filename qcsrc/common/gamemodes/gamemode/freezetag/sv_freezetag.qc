@@ -130,7 +130,7 @@ bool freezetag_CheckWinner()
 	{
 		Send_Notification(NOTIF_ALL, NULL, MSG_CENTER, APP_TEAM_NUM(winner_team, CENTER_ROUND_TEAM_WIN));
 		Send_Notification(NOTIF_ALL, NULL, MSG_INFO, APP_TEAM_NUM(winner_team, INFO_ROUND_TEAM_WIN));
-		TeamScore_AddToTeam(winner_team, ST_SCORE, +1);
+		TeamScore_AddToTeam(winner_team, ST_FT_ROUNDS, +1);
 	}
 	else if(winner_team == -1)
 	{
@@ -472,15 +472,18 @@ MUTATOR_HOOKFUNCTION(ft, PlayerPreThink, CBC_ORDER_FIRST)
 	if(!round_handler_IsRoundStarted())
 		return true;
 
-	int n;
 	entity player = M_ARGV(0, entity);
 	//if (STAT(FROZEN, player) == FROZEN_NORMAL)
 	//if(player.freezetag_frozen_timeout > 0 && time < player.freezetag_frozen_timeout)
 		//player.iceblock.alpha = ICE_MIN_ALPHA + (ICE_MAX_ALPHA - ICE_MIN_ALPHA) * (player.freezetag_frozen_timeout - time) / (player.freezetag_frozen_timeout - player.freezetag_frozen_time);
 
+	if (!(frametime && IS_PLAYER(player)))
+		return true;
+
 	entity reviving_players_last = NULL;
 	entity reviving_players_first = NULL;
 
+	int n;
 	if(player.freezetag_frozen_timeout > 0 && time >= player.freezetag_frozen_timeout)
 		n = -1;
 	else
@@ -621,6 +624,12 @@ MUTATOR_HOOKFUNCTION(ft, SV_ParseServerCommand)
 	return false;
 }
 
+MUTATOR_HOOKFUNCTION(ft, Scores_CountFragsRemaining)
+{
+	// announce remaining frags
+	return true;
+}
+
 void freezetag_Initialize()
 {
 	freezetag_teams = autocvar_g_freezetag_teams_override;
@@ -629,6 +638,7 @@ void freezetag_Initialize()
 
 	freezetag_teams = BITS(bound(2, freezetag_teams, 4));
 	GameRules_scoring(freezetag_teams, SFL_SORT_PRIO_PRIMARY, SFL_SORT_PRIO_PRIMARY, {
+		field_team(ST_FT_ROUNDS, "rounds", SFL_SORT_PRIO_PRIMARY);
 		field(SP_FREEZETAG_REVIVALS, "revivals", 0);
 	});
 

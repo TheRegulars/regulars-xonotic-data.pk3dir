@@ -330,11 +330,13 @@ void cvar_changes_init()
 		BADCVAR("g_balance_kill_delay");
 		BADCVAR("g_buffs_pickup_anyway");
 		BADCVAR("g_buffs_randomize");
+		BADCVAR("g_buffs_randomize_teamplay");
 		BADCVAR("g_campcheck_distance");
 		BADCVAR("g_ca_point_leadlimit");
 		BADCVAR("g_ca_point_limit");
 		BADCVAR("g_ctf_captimerecord_always");
 		BADCVAR("g_ctf_flag_glowtrails");
+		BADCVAR("g_ctf_dynamiclights");
 		BADCVAR("g_ctf_flag_pickup_verbosename");
 		BADCVAR("g_domination_point_leadlimit");
 		BADCVAR("g_forced_respawn");
@@ -396,6 +398,7 @@ void cvar_changes_init()
 		//   :%s,//\([^ ]*\).*,BADCVAR("\1");,
 		//   :%!sort
 		// yes, this does contain some redundant stuff, don't really care
+		BADPREFIX("bot_ai_");
 		BADCVAR("bot_config_file");
 		BADCVAR("bot_number");
 		BADCVAR("bot_prefix");
@@ -494,6 +497,7 @@ void cvar_changes_init()
 		BADCVAR("g_ca_weaponarena");
 		BADCVAR("g_freezetag_weaponarena");
 		BADCVAR("g_lms_weaponarena");
+		BADCVAR("g_ctf_stalemate_time");
 
 		if(cvar_string("g_mod_balance") == "Testing")
 		{
@@ -812,8 +816,6 @@ spawnfunc(worldspawn)
 		if(this.spawnflags & SPAWNFLAG_NO_WAYPOINTS_FOR_ITEMS)
 			bot_waypoints_for_items = 0;
 
-	precache();
-
 	WaypointSprite_Init();
 
 	GameLogInit(); // prepare everything
@@ -873,6 +875,12 @@ spawnfunc(worldspawn)
 
 	MapInfo_Enumerate();
 	MapInfo_FilterGametype(MapInfo_CurrentGametype(), MapInfo_CurrentFeatures(), MapInfo_RequiredFlags(), MapInfo_ForbiddenFlags(), 1);
+
+	if(fexists(strcat("scripts/", mapname, ".arena")))
+		cvar_settemp("sv_q3acompat_machineshotgunswap", "1");
+
+	if(fexists(strcat("scripts/", mapname, ".defi")))
+		cvar_settemp("sv_q3defragcompat", "1");
 
 	if(whichpack(strcat("maps/", mapname, ".cfg")) != "")
 	{
@@ -1253,7 +1261,7 @@ void Maplist_Init()
 				break;
 		}
 	}
-	
+
 	if (i == Map_Count)
 	{
 		bprint( "Maplist contains no usable maps!  Resetting it to default map list.\n" );
@@ -1410,54 +1418,6 @@ void IntermissionThink(entity this)
 
 	MapVote_Start();
 }
-
-/*
-============
-FindIntermission
-
-Returns the entity to view from
-============
-*/
-/*
-entity FindIntermission()
-{
-	local	entity spot;
-	local	float cyc;
-
-// look for info_intermission first
-	spot = find(NULL, classname, "info_intermission");
-	if (spot)
-	{	// pick a random one
-		cyc = random() * 4;
-		while (cyc > 1)
-		{
-			spot = find(spot, classname, "info_intermission");
-			if (!spot)
-				spot = find(spot, classname, "info_intermission");
-			cyc = cyc - 1;
-		}
-		return spot;
-	}
-
-// then look for the start position
-	spot = find(NULL, classname, "info_player_start");
-	if (spot)
-		return spot;
-
-// testinfo_player_start is only found in regioned levels
-	spot = find(NULL, classname, "testplayerstart");
-	if (spot)
-		return spot;
-
-// then look for the start position
-	spot = find(NULL, classname, "info_player_deathmatch");
-	if (spot)
-		return spot;
-
-	//objerror ("FindIntermission: no spot");
-	return NULL;
-}
-*/
 
 /*
 ===============================================================================
@@ -1748,11 +1708,9 @@ void ShuffleMaplist()
 	cvar_set("g_maplist", shufflewords(autocvar_g_maplist));
 }
 
-float leaderfrags;
+int fragsleft_last;
 float WinningCondition_Scores(float limit, float leadlimit)
 {
-	float limitreached;
-
 	// TODO make everything use THIS winning condition (except LMS)
 	WinningConditionHelper(NULL);
 
@@ -1782,42 +1740,43 @@ float WinningCondition_Scores(float limit, float leadlimit)
 		leadlimit = 0; // not supported in this mode
 
 	if(MUTATOR_CALLHOOK(Scores_CountFragsRemaining))
-	// these modes always score in increments of 1, thus this makes sense
 	{
-		if(leaderfrags != WinningConditionHelper_topscore)
-		{
-			leaderfrags = WinningConditionHelper_topscore;
+		float fragsleft = FLOAT_MAX, leadingfragsleft = FLOAT_MAX;
+		if (limit)
+			fragsleft = limit - WinningConditionHelper_topscore;
+		if (leadlimit)
+			leadingfragsleft = WinningConditionHelper_secondscore + leadlimit - WinningConditionHelper_topscore;
 
-			if (limit)
-			{
-				if (leaderfrags == limit - 1)
-					Send_Notification(NOTIF_ALL, NULL, MSG_ANNCE, ANNCE_REMAINING_FRAG_1);
-				else if (leaderfrags == limit - 2)
-					Send_Notification(NOTIF_ALL, NULL, MSG_ANNCE, ANNCE_REMAINING_FRAG_2);
-				else if (leaderfrags == limit - 3)
-					Send_Notification(NOTIF_ALL, NULL, MSG_ANNCE, ANNCE_REMAINING_FRAG_3);
-			}
+		if (limit && leadlimit && autocvar_leadlimit_and_fraglimit)
+			fragsleft = max(fragsleft, leadingfragsleft);
+		else
+			fragsleft = min(fragsleft, leadingfragsleft);
+
+		if (fragsleft_last != fragsleft) // do not announce same remaining frags multiple times
+		{
+			if (fragsleft == 1)
+				Send_Notification(NOTIF_ALL, NULL, MSG_ANNCE, ANNCE_REMAINING_FRAG_1);
+			else if (fragsleft == 2)
+				Send_Notification(NOTIF_ALL, NULL, MSG_ANNCE, ANNCE_REMAINING_FRAG_2);
+			else if (fragsleft == 3)
+				Send_Notification(NOTIF_ALL, NULL, MSG_ANNCE, ANNCE_REMAINING_FRAG_3);
+
+			fragsleft_last = fragsleft;
 		}
 	}
 
-	limitreached = false;
-	if (limit && WinningConditionHelper_topscore >= limit)
-		limitreached = true;
-	if(leadlimit)
-	{
-		float leadlimitreached;
-		leadlimitreached = (WinningConditionHelper_topscore - WinningConditionHelper_secondscore >= leadlimit);
-		if(autocvar_leadlimit_and_fraglimit)
-			limitreached = (limitreached && leadlimitreached);
-		else
-			limitreached = (limitreached || leadlimitreached);
-	}
+	bool fraglimit_reached = (limit && WinningConditionHelper_topscore >= limit);
+	bool leadlimit_reached = (leadlimit && WinningConditionHelper_topscore - WinningConditionHelper_secondscore >= leadlimit);
 
-	if(limit)
-		game_completion_ratio = max(game_completion_ratio, bound(0, WinningConditionHelper_topscore / limit, 1));
+	bool limit_reached;
+	// only respect leadlimit_and_fraglimit when both limits are set or the game will never end
+	if (limit && leadlimit && autocvar_leadlimit_and_fraglimit)
+		limit_reached = (fraglimit_reached && leadlimit_reached);
+	else
+		limit_reached = (fraglimit_reached || leadlimit_reached);
 
 	return GetWinningCode(
-		WinningConditionHelper_topscore && limitreached,
+		WinningConditionHelper_topscore && limit_reached,
 		WinningConditionHelper_equality
 	);
 }
@@ -1908,10 +1867,6 @@ Exit deathmatch games upon conditions
 */
 void CheckRules_World()
 {
-	float timelimit;
-	float fraglimit;
-	float leadlimit;
-
 	VoteThink();
 	MapVote_Think();
 
@@ -1926,9 +1881,10 @@ void CheckRules_World()
 		return;
 	}
 
-	timelimit = autocvar_timelimit * 60;
-	fraglimit = autocvar_fraglimit;
-	leadlimit = autocvar_leadlimit;
+	float timelimit = autocvar_timelimit * 60;
+	float fraglimit = autocvar_fraglimit;
+	float leadlimit = autocvar_leadlimit;
+	if (leadlimit < 0) leadlimit = 0;
 
 	if(warmup_stage || time <= game_starttime) // NOTE: this is <= to prevent problems in the very tic where the game starts
 	{
@@ -1952,11 +1908,6 @@ void CheckRules_World()
 
 	float wantovertime;
 	wantovertime = 0;
-
-	if(timelimit > game_starttime)
-		game_completion_ratio = (time - game_starttime) / (timelimit - game_starttime);
-	else
-		game_completion_ratio = 0;
 
 	if(checkrules_suddendeathend)
 	{
@@ -2103,7 +2054,7 @@ void Physics_Frame()
 	if(autocvar_sv_freezenonclients)
 		return;
 
-	FOREACH_ENTITY_FLOAT(pure_data, false,
+	IL_EACH(g_moveables, true,
 	{
 		if(IS_CLIENT(it) || it.classname == "" || it.move_movetype == MOVETYPE_PUSH || it.move_movetype == MOVETYPE_FAKEPUSH || it.move_movetype == MOVETYPE_PHYSICS)
 			continue;
@@ -2129,7 +2080,7 @@ void Physics_Frame()
 	if(autocvar_sv_gameplayfix_delayprojectiles >= 0)
 		return;
 
-	FOREACH_ENTITY_FLOAT(move_qcphysics, true,
+	IL_EACH(g_moveables, it.move_qcphysics,
 	{
 		if(IS_CLIENT(it) || is_pure(it) || it.classname == "" || it.move_movetype == MOVETYPE_NONE)
 			continue;

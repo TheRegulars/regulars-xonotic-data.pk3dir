@@ -1631,11 +1631,11 @@ void Scoreboard_Draw()
 	draw_endBoldFont();
 
 	// Game Info: Game Detail
-	float tl, fl, ll;
-	str = ""; // optionally "^7Limits: "
-	tl = STAT(TIMELIMIT);
-	fl = STAT(FRAGLIMIT);
-	ll = STAT(LEADLIMIT);
+	float tl = STAT(TIMELIMIT);
+	float fl = STAT(FRAGLIMIT);
+	float ll = STAT(LEADLIMIT);
+	float ll_and_fl = STAT(LEADLIMIT_AND_FRAGLIMIT);
+	str = "";
 	if(tl > 0)
 		str = strcat(str, sprintf(_("^3%1.0f minutes"), tl));
 	if(!ISGAMETYPE(LMS))
@@ -1648,33 +1648,40 @@ void Scoreboard_Draw()
 			{
 				str = strcat(str, sprintf(_("^5%s %s"), ScoreString(teamscores_flags(ts_primary), fl),
 					(teamscores_label(ts_primary) == "score")   ? CTX(_("SCO^points")) :
-					(teamscores_label(ts_primary) == "fastest") ? CTX(_("SCO^is beaten")) :
+					(teamscores_label(ts_primary) == "fastest") ? "" :
 					TranslateScoresLabel(teamscores_label(ts_primary))));
 			}
 			else
 			{
 				str = strcat(str, sprintf(_("^5%s %s"), ScoreString(scores_flags(ps_primary), fl),
 					(scores_label(ps_primary) == "score")   ? CTX(_("SCO^points")) :
-					(scores_label(ps_primary) == "fastest") ? CTX(_("SCO^is beaten")) :
+					(scores_label(ps_primary) == "fastest") ? "" :
 					TranslateScoresLabel(scores_label(ps_primary))));
 			}
 		}
 		if(ll > 0)
 		{
 			if(tl > 0 || fl > 0)
-				str = strcat(str, "^7 / "); // delimiter
+			{
+				// delimiter
+				if (ll_and_fl && fl > 0)
+					str = strcat(str, "^7 & ");
+				else
+					str = strcat(str, "^7 / ");
+			}
+
 			if(teamplay)
 			{
 				str = strcat(str, sprintf(_("^2+%s %s"), ScoreString(teamscores_flags(ts_primary), ll),
 					(teamscores_label(ts_primary) == "score")   ? CTX(_("SCO^points")) :
-					(teamscores_label(ts_primary) == "fastest") ? CTX(_("SCO^is beaten")) :
+					(teamscores_label(ts_primary) == "fastest") ? "" :
 					TranslateScoresLabel(teamscores_label(ts_primary))));
 			}
 			else
 			{
 				str = strcat(str, sprintf(_("^2+%s %s"), ScoreString(scores_flags(ps_primary), ll),
 					(scores_label(ps_primary) == "score")   ? CTX(_("SCO^points")) :
-					(scores_label(ps_primary) == "fastest") ? CTX(_("SCO^is beaten")) :
+					(scores_label(ps_primary) == "fastest") ? "" :
 					TranslateScoresLabel(scores_label(ps_primary))));
 			}
 		}

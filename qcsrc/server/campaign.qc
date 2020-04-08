@@ -75,10 +75,19 @@ float Campaign_Invalid()
 	return 0;
 }
 
+int Campaign_GetLevelNum()
+{
+	return campaign_level + 1;
+}
+
+string Campaign_GetMessage()
+{
+	return strcat(campaign_shortdesc[0], "\n^3\n", campaign_longdesc[0]);
+}
+
 void CampaignPreInit()
 {
 	float baseskill;
-	string title;
 	campaign_level = autocvar__campaign_index;
 	campaign_name = strzone(autocvar__campaign_name);
 	campaign_index_var = strzone(strcat("g_campaign", campaign_name, "_index"));
@@ -142,11 +151,6 @@ void CampaignPreInit()
 
 	if(Campaign_Invalid())
 		return;
-
-	title = campaign_shortdesc[0];
-	title = strzone(strcat("Level ", ftos(campaign_level + 1), ": ", title));
-	campaign_message = strzone(strcat(title, "\n^3\n", campaign_longdesc[0], "\n\n^1press jump to enter the game"));
-	strunzone(title);
 }
 
 void CampaignPostInit()
@@ -157,16 +161,28 @@ void CampaignPostInit()
 	if(autocvar__campaign_testrun)
 	{
 		cvar_set("fraglimit", "0");
+		cvar_set("leadlimit", "0");
 		cvar_set("timelimit", "0.01");
 		cvar_set_normal("fraglimit", "0");
+		cvar_set_normal("leadlimit", "0");
 		cvar_set_normal("timelimit", "0.01");
 	}
 	else
 	{
-		cvar_set("fraglimit", ftos(campaign_fraglimit[0]));
-		cvar_set("timelimit", ftos(campaign_timelimit[0]));
-		cvar_set_normal("fraglimit", ftos(campaign_fraglimit[0]));
-		cvar_set_normal("timelimit", ftos(campaign_timelimit[0]));
+		// "default" uses implicit values, "" or "0" means no limit
+		tokenizebyseparator(campaign_fraglimit[0], "+");
+		if(argv(0) != "default") {
+			cvar_set("fraglimit", argv(0));
+			cvar_set_normal("fraglimit", argv(0));
+		}
+		if(argv(1) != "default") {
+			cvar_set("leadlimit", argv(1));
+			cvar_set_normal("leadlimit", argv(1));
+		}
+		if(campaign_timelimit[0] != "default") {
+			cvar_set("timelimit", campaign_timelimit[0]);
+			cvar_set_normal("timelimit", campaign_timelimit[0]);
+		}
 	}
 }
 
@@ -297,7 +313,6 @@ void CampaignPostIntermission()
 
 	CampaignSetup(campaign_won);
 	CampaignFile_Unload();
-	strunzone(campaign_message);
 	strunzone(campaign_index_var);
 	strunzone(campaign_name);
 	campaign_name = "";

@@ -203,6 +203,7 @@ void buff_Touch(entity this, entity toucher)
 	Send_Effect(EFFECT_ITEM_PICKUP, CENTER_OR_VIEWOFS(this), '0 0 0', 1);
 	sound(toucher, CH_TRIGGER, SND_SHIELD_RESPAWN, VOL_BASE, ATTN_NORM);
 	STAT(BUFFS, toucher) |= (STAT(BUFFS, this));
+	STAT(LAST_PICKUP, toucher) = time;
 	float bufftime = ((this.count) ? this.count : thebuff.m_time(thebuff));
 	if(bufftime)
 		STAT(BUFF_TIME, toucher) = min(time + bufftime, max(STAT(BUFF_TIME, toucher), time) + bufftime);
@@ -272,7 +273,7 @@ void buff_Think(entity this)
 	{
 		buff_SetCooldown(this, autocvar_g_buffs_cooldown_respawn + frametime);
 		this.owner = NULL;
-		if(autocvar_g_buffs_randomize)
+		if(autocvar_g_buffs_randomize && (!teamplay || autocvar_g_buffs_randomize_teamplay))
 			buff_NewType(this);
 
 		if(autocvar_g_buffs_random_location || (this.spawnflags & 64))
@@ -316,7 +317,7 @@ void buff_Waypoint_Reset(entity this)
 
 void buff_Reset(entity this)
 {
-	if(autocvar_g_buffs_randomize)
+	if(autocvar_g_buffs_randomize && (!teamplay || autocvar_g_buffs_randomize_teamplay))
 		buff_NewType(this);
 	this.owner = NULL;
 	buff_SetCooldown(this, autocvar_g_buffs_cooldown_activate);
