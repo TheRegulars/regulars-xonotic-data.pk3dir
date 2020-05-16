@@ -353,7 +353,7 @@
     MSG_INFO_NOTIF(FREEZETAG_REVIVED,                       N_CONSOLE,  2, 0, "s1 s2", "",      "",     _("^BG%s^K3 was revived by ^BG%s"), "")
     MSG_INFO_NOTIF(FREEZETAG_REVIVED_FALL,                  N_CONSOLE,  1, 0, "s1", "",         "",     _("^BG%s^K3 was revived by falling"), "")
     MSG_INFO_NOTIF(FREEZETAG_REVIVED_NADE,                  N_CONSOLE,  1, 0, "s1", "",         "",     _("^BG%s^K3 was revived by their Nade explosion"), "")
-    MSG_INFO_NOTIF(FREEZETAG_AUTO_REVIVED,                  N_CONSOLE,  1, 1, "s1 f1", "",      "",     _("^BG%s^K3 was automatically revived after %s second(s)"), "")
+    MSG_INFO_NOTIF(FREEZETAG_AUTO_REVIVED,                  N_CONSOLE,  1, 1, "s1 f1", "",      "",     _("^BG%s^K3 was automatically revived after %s seconds"), "")
     MSG_INFO_NOTIF(FREEZETAG_SELF,                          N_CONSOLE,  1, 0, "s1", "",         "",     _("^BG%s^K1 froze themself"), "")
 
     MULTITEAM_INFO(ROUND_TEAM_WIN,                          N_CONSOLE,  0, 0, "", "",           "",     _("^TC^TT^BG team wins the round"), "", NAME)
@@ -576,8 +576,8 @@
 
     #define VERBOSE_MURDER(type) strcat(MURDER_##type, "^BG%s")
 
-    #define MURDER_FRAG             _("^K3%sYou fragged ^BG%s")
-    #define MURDER_FRAG2            _("^K3%sYou scored against ^BG%s")
+    #define MURDER_FRAG             strcat(BOLD_OPERATOR, _("^K3%sYou fragged ^BG%s"))
+    #define MURDER_FRAG2            strcat(BOLD_OPERATOR, _("^K3%sYou scored against ^BG%s"))
     #define MURDER_FRAGGED          _("^K1%sYou were fragged by ^BG%s")
     #define MURDER_FRAGGED2         _("^K1%sYou were scored against by ^BG%s")
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAG,                   N_ENABLE,  1, 1, "spree_cen s1",               CPID_Null,  "0 0",  MURDER_FRAG,                    MURDER_FRAG2                   )
@@ -585,8 +585,8 @@
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAGGED_VERBOSE,        N_ENABLE,  1, 4, "spree_cen s1 frag_stats",    CPID_Null,  "0 0",  VERBOSE_MURDER(FRAGGED),        VERBOSE_MURDER(FRAGGED2)       )
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAG_VERBOSE,           N_ENABLE,  1, 2, "spree_cen s1 frag_ping",     CPID_Null,  "0 0",  VERBOSE_MURDER(FRAG),           VERBOSE_MURDER(FRAG2)          )
 
-    #define MURDER_FRAG_FIRE        _("^K3%sYou burned ^BG%s")
-    #define MURDER_FRAG_FIRE2       _("^K3%sYou scored against ^BG%s")
+    #define MURDER_FRAG_FIRE        strcat(BOLD_OPERATOR, _("^K3%sYou burned ^BG%s"))
+    #define MURDER_FRAG_FIRE2       strcat(BOLD_OPERATOR, _("^K3%sYou scored against ^BG%s"))
     #define MURDER_FRAGGED_FIRE     _("^K1%sYou were burned by ^BG%s")
     #define MURDER_FRAGGED_FIRE2    _("^K1%sYou were scored against by ^BG%s")
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAG_FIRE,              N_ENABLE,  1, 1, "spree_cen s1",               CPID_Null,  "0 0",  MURDER_FRAG_FIRE,               MURDER_FRAG_FIRE2              )
@@ -594,8 +594,8 @@
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAGGED_FIRE_VERBOSE,   N_ENABLE,  1, 4, "spree_cen s1 frag_stats",    CPID_Null,  "0 0",  VERBOSE_MURDER(FRAGGED_FIRE),   VERBOSE_MURDER(FRAGGED_FIRE2)  )
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAG_FIRE_VERBOSE,      N_ENABLE,  1, 2, "spree_cen s1 frag_ping",     CPID_Null,  "0 0",  VERBOSE_MURDER(FRAG_FIRE),      VERBOSE_MURDER(FRAG_FIRE2)     )
 
-    #define MURDER_FRAG_FREEZE      _("^K3%sYou froze ^BG%s")
-    #define MURDER_FRAG_FREEZE2     _("^K3%sYou scored against ^BG%s")
+    #define MURDER_FRAG_FREEZE      strcat(BOLD_OPERATOR, _("^K3%sYou froze ^BG%s"))
+    #define MURDER_FRAG_FREEZE2     strcat(BOLD_OPERATOR, _("^K3%sYou scored against ^BG%s"))
     #define MURDER_FRAGGED_FREEZE   _("^K1%sYou were frozen by ^BG%s")
     #define MURDER_FRAGGED_FREEZE2  _("^K1%sYou were scored against by ^BG%s")
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAG_FREEZE,            N_ENABLE,  1, 1, "spree_cen s1",               CPID_Null,  "0 0",  MURDER_FRAG_FREEZE,             MURDER_FRAG_FREEZE2            )
@@ -603,8 +603,8 @@
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAGGED_FREEZE_VERBOSE, N_ENABLE,  1, 4, "spree_cen s1 frag_stats",    CPID_Null,  "0 0",  VERBOSE_MURDER(FRAGGED_FREEZE), VERBOSE_MURDER(FRAGGED_FREEZE2))
     MSG_CENTER_NOTIF(DEATH_MURDER_FRAG_FREEZE_VERBOSE,    N_ENABLE,  1, 2, "spree_cen s1 frag_ping",     CPID_Null,  "0 0",  VERBOSE_MURDER(FRAG_FREEZE),    VERBOSE_MURDER(FRAG_FREEZE2)   )
 
-    #define MURDER_TYPEFRAG         _("^K1%sYou typefragged ^BG%s")
-    #define MURDER_TYPEFRAG2        _("^K1%sYou scored against ^BG%s^K1 while they were typing")
+    #define MURDER_TYPEFRAG         strcat(BOLD_OPERATOR, _("^K1%sYou typefragged ^BG%s"))
+    #define MURDER_TYPEFRAG2        strcat(BOLD_OPERATOR, _("^K1%sYou scored against ^BG%s^K1 while they were typing"))
     #define MURDER_TYPEFRAGGED      _("^K1%sYou were typefragged by ^BG%s")
     #define MURDER_TYPEFRAGGED2     _("^K1%sYou were scored against by ^BG%s^K1 while typing")
     MSG_CENTER_NOTIF(DEATH_MURDER_TYPEFRAG,               N_ENABLE,  1, 1, "spree_cen s1",               CPID_Null,  "0 0",  MURDER_TYPEFRAG,                MURDER_TYPEFRAG2               )
@@ -665,7 +665,7 @@
     MSG_CENTER_NOTIF(FREEZETAG_REVIVE,                  N_ENABLE,    1, 0, "s1",             CPID_Null,              "0 0",  _("^K3You revived ^BG%s"), "")
     MSG_CENTER_NOTIF(FREEZETAG_REVIVE_SELF,             N_ENABLE,    0, 0, "",               CPID_Null,              "0 0",  _("^K3You revived yourself"), "")
     MSG_CENTER_NOTIF(FREEZETAG_REVIVED,                 N_ENABLE,    1, 0, "s1",             CPID_Null,              "0 0",  _("^K3You were revived by ^BG%s"), "")
-    MSG_CENTER_NOTIF(FREEZETAG_AUTO_REVIVED,            N_ENABLE,    0, 1, "f1",             CPID_Null,              "0 0",  _("^K3You were automatically revived after %s second(s)"), "")
+    MSG_CENTER_NOTIF(FREEZETAG_AUTO_REVIVED,            N_ENABLE,    0, 1, "f1",             CPID_Null,              "0 0",  _("^K3You were automatically revived after %s seconds"), "")
 
     MSG_CENTER_NOTIF(GENERATOR_UNDERATTACK,             N_ENABLE,    0, 0, "",               CPID_Null,              "0 0",  _("^BGThe generator is under attack!"), "")
 

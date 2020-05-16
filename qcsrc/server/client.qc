@@ -336,10 +336,10 @@ void PutObserverInServer(entity this)
 	this.fade_time = 0;
 	this.pain_frame = 0;
 	this.pain_finished = 0;
-	this.strength_finished = 0;
-	this.invincible_finished = 0;
-	this.superweapons_finished = 0;
-	this.air_finished_stat = 0;
+	STAT(STRENGTH_FINISHED, this) = 0;
+	STAT(INVINCIBLE_FINISHED, this) = 0;
+	STAT(SUPERWEAPONS_FINISHED, this) = 0;
+	this.air_finished = 0;
 	//this.dphitcontentsmask = 0;
 	this.dphitcontentsmask = DPCONTENTS_SOLID;
 	if (autocvar_g_playerclip_collisions)
@@ -602,7 +602,7 @@ void PutPlayerInServer(entity this)
 
 	PS(this).dual_weapons = '0 0 0';
 
-	this.superweapons_finished = (STAT(WEAPONS, this) & WEPSET_SUPERWEAPONS) ? time + autocvar_g_balance_superweapons_time : 0;
+	STAT(SUPERWEAPONS_FINISHED, this) = (STAT(WEAPONS, this) & WEPSET_SUPERWEAPONS) ? time + autocvar_g_balance_superweapons_time : 0;
 
 	this.items = start_items;
 
@@ -651,8 +651,8 @@ void PutPlayerInServer(entity this)
 	this.punchangle = '0 0 0';
 	this.punchvector = '0 0 0';
 
-	this.strength_finished = 0;
-	this.invincible_finished = 0;
+	STAT(STRENGTH_FINISHED, this) = 0;
+	STAT(INVINCIBLE_FINISHED, this) = 0;
 	this.fire_endtime = -1;
 	STAT(REVIVE_PROGRESS, this) = 0;
 	this.revival_time = 0;
@@ -661,7 +661,7 @@ void PutPlayerInServer(entity this)
 	STAT(BUFFS, this) = 0;
 	STAT(BUFF_TIME, this) = 0;
 
-	this.air_finished = time + autocvar_g_balance_contents_drowndelay;
+	this.air_finished = 0;
 	this.waterlevel = WATERLEVEL_NONE;
 	this.watertype = CONTENT_EMPTY;
 
@@ -1428,9 +1428,9 @@ void player_powerups(entity this)
 	{
 		if (this.items & ITEM_Strength.m_itemid)
 		{
-			play_countdown(this, this.strength_finished, SND_POWEROFF);
+			play_countdown(this, STAT(STRENGTH_FINISHED, this), SND_POWEROFF);
 			this.effects = this.effects | (EF_BLUE | EF_ADDITIVE | EF_FULLBRIGHT);
-			if (time > this.strength_finished)
+			if (time > STAT(STRENGTH_FINISHED, this))
 			{
 				this.items = this.items - (this.items & ITEM_Strength.m_itemid);
 				//Send_Notification(NOTIF_ALL, NULL, MSG_INFO, INFO_POWERDOWN_STRENGTH, this.netname);
@@ -1439,7 +1439,7 @@ void player_powerups(entity this)
 		}
 		else
 		{
-			if (time < this.strength_finished)
+			if (time < STAT(STRENGTH_FINISHED, this))
 			{
 				this.items = this.items | ITEM_Strength.m_itemid;
 				if(!g_cts)
@@ -1449,9 +1449,9 @@ void player_powerups(entity this)
 		}
 		if (this.items & ITEM_Shield.m_itemid)
 		{
-			play_countdown(this, this.invincible_finished, SND_POWEROFF);
+			play_countdown(this, STAT(INVINCIBLE_FINISHED, this), SND_POWEROFF);
 			this.effects = this.effects | (EF_RED | EF_ADDITIVE | EF_FULLBRIGHT);
-			if (time > this.invincible_finished)
+			if (time > STAT(INVINCIBLE_FINISHED, this))
 			{
 				this.items = this.items - (this.items & ITEM_Shield.m_itemid);
 				//Send_Notification(NOTIF_ALL, NULL, MSG_INFO, INFO_POWERDOWN_SHIELD, this.netname);
@@ -1460,7 +1460,7 @@ void player_powerups(entity this)
 		}
 		else
 		{
-			if (time < this.invincible_finished)
+			if (time < STAT(INVINCIBLE_FINISHED, this))
 			{
 				this.items = this.items | ITEM_Shield.m_itemid;
 				if(!g_cts)
@@ -1472,7 +1472,7 @@ void player_powerups(entity this)
 		{
 			if (!(STAT(WEAPONS, this) & WEPSET_SUPERWEAPONS))
 			{
-				this.superweapons_finished = 0;
+				STAT(SUPERWEAPONS_FINISHED, this) = 0;
 				this.items = this.items - (this.items & IT_SUPERWEAPON);
 				//Send_Notification(NOTIF_ALL, NULL, MSG_INFO, INFO_SUPERWEAPON_LOST, this.netname);
 				Send_Notification(NOTIF_ONE, this, MSG_CENTER, CENTER_SUPERWEAPON_LOST);
@@ -1483,8 +1483,8 @@ void player_powerups(entity this)
 			}
 			else
 			{
-				play_countdown(this, this.superweapons_finished, SND_POWEROFF);
-				if (time > this.superweapons_finished)
+				play_countdown(this, STAT(SUPERWEAPONS_FINISHED, this), SND_POWEROFF);
+				if (time > STAT(SUPERWEAPONS_FINISHED, this))
 				{
 					this.items = this.items - (this.items & IT_SUPERWEAPON);
 					STAT(WEAPONS, this) &= ~WEPSET_SUPERWEAPONS;
@@ -1495,7 +1495,7 @@ void player_powerups(entity this)
 		}
 		else if(STAT(WEAPONS, this) & WEPSET_SUPERWEAPONS)
 		{
-			if (time < this.superweapons_finished || (this.items & IT_UNLIMITED_SUPERWEAPONS))
+			if (time < STAT(SUPERWEAPONS_FINISHED, this) || (this.items & IT_UNLIMITED_SUPERWEAPONS))
 			{
 				this.items = this.items | IT_SUPERWEAPON;
 				if(!(this.items & IT_UNLIMITED_SUPERWEAPONS))
@@ -1507,13 +1507,13 @@ void player_powerups(entity this)
 			}
 			else
 			{
-				this.superweapons_finished = 0;
+				STAT(SUPERWEAPONS_FINISHED, this) = 0;
 				STAT(WEAPONS, this) &= ~WEPSET_SUPERWEAPONS;
 			}
 		}
 		else
 		{
-			this.superweapons_finished = 0;
+			STAT(SUPERWEAPONS_FINISHED, this) = 0;
 		}
 	}
 
@@ -1695,10 +1695,10 @@ void SpectateCopy(entity this, entity spectatee)
 	this.items = spectatee.items;
 	STAT(LAST_PICKUP, this) = STAT(LAST_PICKUP, spectatee);
 	STAT(HIT_TIME, this) = STAT(HIT_TIME, spectatee);
-	this.strength_finished = spectatee.strength_finished;
-	this.invincible_finished = spectatee.invincible_finished;
-	this.superweapons_finished = spectatee.superweapons_finished;
-	this.air_finished_stat = spectatee.air_finished_stat;
+	STAT(STRENGTH_FINISHED, this) = STAT(STRENGTH_FINISHED, spectatee);
+	STAT(INVINCIBLE_FINISHED, this) = STAT(INVINCIBLE_FINISHED, spectatee);
+	STAT(SUPERWEAPONS_FINISHED, this) = STAT(SUPERWEAPONS_FINISHED, spectatee);
+	this.air_finished = spectatee.air_finished;
 	STAT(PRESSED_KEYS, this) = STAT(PRESSED_KEYS, spectatee);
 	STAT(WEAPONS, this) = STAT(WEAPONS, spectatee);
 	this.punchangle = spectatee.punchangle;
@@ -2002,11 +2002,11 @@ int nJoinAllowed(entity this, entity ignore)
 	else if(currentlyPlaying < player_limit)
 		free_slots = min(maxclients - totalClients, player_limit - currentlyPlaying);
 
-	static float join_prevent_msg_time = 0;
-	if(this && ignore && !free_slots && time > join_prevent_msg_time)
+	static float msg_time = 0;
+	if(this && !this.caplayer && ignore && !free_slots && time > msg_time)
 	{
 		Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CENTER_JOIN_PREVENT);
-		join_prevent_msg_time = time + 3;
+		msg_time = time + 0.5;
 	}
 
 	return free_slots;
@@ -2284,7 +2284,8 @@ void ObserverThink(entity this)
 			if(this.flags & FL_SPAWNING)
 			{
 				this.flags &= ~FL_SPAWNING;
-				Join(this);
+				if(joinAllowed(this))
+					Join(this);
 				return;
 			}
 		}
@@ -2618,27 +2619,32 @@ void PlayerPreThink (entity this)
 
 void DrownPlayer(entity this)
 {
-	if(IS_DEAD(this) || game_stopped || time < game_starttime)
-		return;
-
-	if (this.waterlevel != WATERLEVEL_SUBMERGED || this.vehicle)
+	if(IS_DEAD(this) || game_stopped || time < game_starttime || this.vehicle
+		|| STAT(FROZEN, this) || this.watertype != CONTENT_WATER)
 	{
-		if(this.air_finished < time)
-			PlayerSound(this, playersound_gasp, CH_PLAYER, VOL_BASE, VOICETYPE_PLAYERSOUND);
-		this.air_finished = time + autocvar_g_balance_contents_drowndelay;
-		this.air_finished_stat = 0;
+		this.air_finished = 0;
+		return;
 	}
-	else if (this.air_finished < time)
-	{	// drown!
-		if (this.pain_finished < time)
-		{
-			Damage (this, NULL, NULL, autocvar_g_balance_contents_playerdamage_drowning * autocvar_g_balance_contents_damagerate, DEATH_DROWN.m_id, DMG_NOWEP, this.origin, '0 0 0');
-			this.pain_finished = time + 0.5;
-		}
-		this.air_finished_stat = this.air_finished;
+
+	if (this.waterlevel != WATERLEVEL_SUBMERGED)
+	{
+		if(this.air_finished && this.air_finished < time)
+			PlayerSound(this, playersound_gasp, CH_PLAYER, VOL_BASE, VOICETYPE_PLAYERSOUND);
+		this.air_finished = 0;
 	}
 	else
-		this.air_finished_stat = this.air_finished;
+	{
+		if (!this.air_finished)
+			this.air_finished = time + autocvar_g_balance_contents_drowndelay;
+		if (this.air_finished < time)
+		{	// drown!
+			if (this.pain_finished < time)
+			{
+				Damage (this, NULL, NULL, autocvar_g_balance_contents_playerdamage_drowning * autocvar_g_balance_contents_damagerate, DEATH_DROWN.m_id, DMG_NOWEP, this.origin, '0 0 0');
+				this.pain_finished = time + 0.5;
+			}
+		}
+	}
 }
 
 .bool move_qcphysics;
