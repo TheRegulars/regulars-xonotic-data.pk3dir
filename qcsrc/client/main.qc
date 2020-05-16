@@ -310,6 +310,17 @@ bool SetTeam(entity o, int Team)
 	return false;
 }
 
+// FIXME: this is hack to lock cl_netfps in [40, 300] range
+void ValidateNetfps() {
+	if (spectatee_status == 0 && !isdemo()) {
+		if (cvar("cl_netfps") < 40) {
+			cvar_set("cl_netfps",  "40");
+		} else if (cvar("cl_netfps") > 300) {
+			cvar_set("cl_netfps", "300");
+		}
+	}
+}
+
 void Playerchecker_Think(entity this)
 {
 	int i;
@@ -349,6 +360,7 @@ void Playerchecker_Think(entity this)
 			}
 		}
 	}
+	ValidateNetfps();
 	this.nextthink = time + 0.2;
 }
 
