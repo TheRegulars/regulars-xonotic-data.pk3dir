@@ -528,10 +528,10 @@ void XonoticServerList_draw(entity me)
 	}
 	else { me.nItems = gethostcachevalue(SLIST_HOSTCACHEVIEWCOUNT); }
 
-	me.connectButton.disabled = (me.lockedSelectedItem || (me.nItems == 0 && me.ipAddressBox.text == ""));
+	me.connectButton.disabled = (me.ipAddressBox.text == "");
 	//me.disconnectButton.disabled = (!(gamestatus & (GAME_ISSERVER | GAME_CONNECTED)));
-	me.infoButton.disabled = (me.lockedSelectedItem || me.nItems == 0 || !owned);
-	me.favoriteButton.disabled = (me.lockedSelectedItem || (me.nItems == 0 && me.ipAddressBox.text == ""));
+	me.infoButton.disabled = !owned;
+	me.favoriteButton.disabled = (me.ipAddressBox.text == "");
 
 	bool found = false;
 	if(me.lockedSelectedItem)
@@ -623,7 +623,7 @@ void ServerList_TypeSort_Click(entity btn, entity me)
 		// the type was found
 		// choose the next one
 		flag = true;
-		s = MapInfo_Type_ToString(Gametypes_from(it.m_id + 1));
+		s = MapInfo_Type_ToString(REGISTRY_GET(Gametypes, it.m_id + 1));
 		if (s == "") s = MapInfo_Type_ToString(first);
 		break;
 	});
@@ -745,10 +745,8 @@ void XonoticServerList_resizeNotify(entity me, vector relOrigin, vector relSize,
 }
 void ServerList_Connect_Click(entity btn, entity me)
 {
-	if (me.lockedSelectedItem)
-		return;
-	string sv = (me.ipAddressBox.text != "") ? me.ipAddressBox.text : me.selectedServer;
-	localcmd(sprintf("connect %s\n", sv));
+	if (me.ipAddressBox.text != "")
+		localcmd(sprintf("connect %s\n", me.ipAddressBox.text));
 }
 void ServerList_Favorite_Click(entity btn, entity this)
 {

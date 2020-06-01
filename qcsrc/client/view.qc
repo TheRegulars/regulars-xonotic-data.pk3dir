@@ -787,7 +787,7 @@ void View_EventChase(entity this)
 		{
 			if(hud != HUD_BUMBLEBEE_GUN)
 			{
-				Vehicle info = Vehicles_from(hud);
+				Vehicle info = REGISTRY_GET(Vehicles, hud);
 				vehicle_viewdist = info.height;
 				vehicle_viewofs = info.view_ofs;
 				if(vehicle_viewdist < 0) // when set below 0, this vehicle doesn't use third person view (gunner slots)
@@ -898,7 +898,7 @@ void HUD_Crosshair_Vehicle(entity this)
 {
 	if(hud != HUD_BUMBLEBEE_GUN)
 	{
-		Vehicle info = Vehicles_from(hud);
+		Vehicle info = REGISTRY_GET(Vehicles, hud);
 		info.vr_crosshair(info, this);
 	}
 }
@@ -1079,6 +1079,10 @@ LABEL(normalcolor)
 
 void HUD_Crosshair(entity this)
 {
+	// reset player's alpha here upon death since forced scoreboard prevents running the crosshair_chase code
+	if(autocvar_chase_active > 0 && autocvar_crosshair_chase && STAT(HEALTH) <= 0 && csqcplayer)
+		csqcplayer.alpha = csqcplayer.m_alpha;
+
 	float f, i, j;
 	vector v;
 	if(!scoreboard_active && !camera_active && intermission != 2 && !STAT(GAME_STOPPED) &&
@@ -1124,7 +1128,7 @@ void HUD_Crosshair(entity this)
 			{
 				traceline(view_origin, view_origin + max_shot_distance * view_forward, MOVE_NORMAL, NULL);
 				float myalpha = (!csqcplayer.m_alpha) ? 1 : csqcplayer.m_alpha;
-				if(trace_ent == csqcplayer && STAT(HEALTH) > 0)
+				if(trace_ent == csqcplayer)
 					csqcplayer.alpha = min(autocvar_crosshair_chase_playeralpha, myalpha);
 				else
 					csqcplayer.alpha = csqcplayer.m_alpha;
@@ -1159,7 +1163,7 @@ void HUD_Crosshair(entity this)
 		string wcross_name = "";
 		float wcross_scale, wcross_blur;
 
-        entity e = WEP_Null;
+		entity e = WEP_Null;
 		if(autocvar_crosshair_per_weapon || (autocvar_crosshair_color_special == 1))
 		{
 			entity wepent = viewmodels[0]; // TODO: unhardcode
@@ -1538,7 +1542,7 @@ void SpecialCommand()
 			{
 				slot.x = bound(0, (random() * vid_conwidth + 1), vid_conwidth);
 				slot.y = 1; // start it off 0 so we can use it
-				slot.z = floor(random() * Weapons_MAX);
+				slot.z = floor(random() * REGISTRY_MAX(Weapons));
 				sc_spawntime = time + bound(0.4, random(), 0.75); // prevent spawning another one for this amount of time!
 				vector newcolor = randomvec() * 2;
 				newcolor.x = bound(0.4, newcolor.x, 1);
@@ -1552,7 +1556,7 @@ void SpecialCommand()
 			vector splash_size = '0 0 0';
 			splash_size.x = max(vid_conwidth, vid_conheight) * SPECIALCOMMAND_SIZE;
 			splash_size.y = max(vid_conwidth, vid_conheight) * SPECIALCOMMAND_SIZE;
-			entity wep = Weapons_from(slot.z);
+			entity wep = REGISTRY_GET(Weapons, slot.z);
 			if(wep == WEP_Null)
 				drawpic(vec2(slot), "gfx/smile", vec2(splash_size), specialcommand_colors[j], 0.95, DRAWFLAG_NORMAL);
 			else
@@ -1635,6 +1639,7 @@ void ViewLocation_Mouse()
 	viewloc_mousepos.y = bound(0, viewloc_mousepos.y, vid_conheight);
 
 	//float cursor_alpha = 1 - autocvar__menu_alpha;
+	//cursor_type = CURSOR_NORMAL;
 	//draw_cursor(viewloc_mousepos, '0.5 0.5 0', "/cursor_move", '1 1 1', cursor_alpha);
 }
 
@@ -1675,6 +1680,7 @@ void HUD_Mouse(entity player)
 	if(!autocvar_hud_cursormode)
 		update_mousepos();
 
+	cursor_type = CURSOR_NORMAL;
 	if(autocvar__hud_configure)
 		HUD_Panel_Mouse();
 	else
