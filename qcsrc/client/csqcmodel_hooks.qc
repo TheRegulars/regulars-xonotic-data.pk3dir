@@ -6,6 +6,8 @@
 #include "weapons/projectile.qh"
 #include <common/animdecide.qh>
 #include <common/ent_cs.qh>
+#include <common/gamemodes/_mod.qh>
+#include <common/mapinfo.qh>
 #include <common/physics/movetypes/movetypes.qh>
 #include <common/viewloc.qh>
 #include <common/effects/all.qh>
@@ -133,6 +135,9 @@ void CSQCPlayer_ModelAppearance_PostUpdate(entity this)
 }
 void CSQCPlayer_ModelAppearance_Apply(entity this, bool islocalplayer)
 {
+	int cm = this.forceplayermodels_savecolormap;
+	cm = (cm >= 1024) ? cm : (entcs_GetClientColors(cm - 1) + 1024);
+
 	if(MUTATOR_CALLHOOK(ForcePlayermodels_Skip, this, islocalplayer))
 		goto skipforcemodels;
 
@@ -193,9 +198,6 @@ void CSQCPlayer_ModelAppearance_Apply(entity this, bool islocalplayer)
 
 	// apply it
 	bool isfriend;
-	int cm;
-	cm = this.forceplayermodels_savecolormap;
-	cm = (cm >= 1024) ? cm : (entcs_GetClientColors(cm - 1) + 1024);
 
 	if(teamplay)
 		isfriend = (cm == 1024 + 17 * myteam);
@@ -227,6 +229,11 @@ void CSQCPlayer_ModelAppearance_Apply(entity this, bool islocalplayer)
 		this.skin = this.forceplayermodels_saveskin;
 	}
 
+	LABEL(skipforcemodels)
+
+	if(MUTATOR_CALLHOOK(ForcePlayercolors_Skip, this, islocalplayer))
+		goto skipforcecolors;
+
 	// forceplayercolors too
 	if(teamplay)
 	{
@@ -237,7 +244,8 @@ void CSQCPlayer_ModelAppearance_Apply(entity this, bool islocalplayer)
 
 		if(autocvar_cl_forcemyplayercolors)
 			forcecolor_friend = 1024 + autocvar_cl_forcemyplayercolors;
-		if(autocvar_cl_forceplayercolors == 2 && team_count == 2)
+		if((autocvar_cl_forceplayercolors == 2 && team_count == 2)
+			|| (autocvar_cl_forceplayercolors == 3 && IS_GAMETYPE(DUEL)))
 			forcecolor_enemy = 1024 + autocvar__cl_color;
 
 		if(forcecolor_enemy && !forcecolor_friend)
@@ -280,7 +288,7 @@ void CSQCPlayer_ModelAppearance_Apply(entity this, bool islocalplayer)
 			this.colormap = player_localnum + 1;
 	}
 
-	LABEL(skipforcemodels)
+	LABEL(skipforcecolors)
 
 	if((this.csqcmodel_effects & CSQCMODEL_EF_RESPAWNGHOST) && !autocvar_cl_respawn_ghosts_keepcolors)
 	{

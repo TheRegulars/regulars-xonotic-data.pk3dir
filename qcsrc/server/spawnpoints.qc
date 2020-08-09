@@ -8,7 +8,7 @@
 #include "../common/constants.qh"
 #include <common/net_linked.qh>
 #include "../common/teams.qh"
-#include <common/mapinfo.qh>
+#include <common/gamemodes/_mod.qh>
 #include "../common/mapobjects/subs.qh"
 #include "../common/mapobjects/target/spawnpoint.qh"
 #include "../common/util.qh"
@@ -232,7 +232,7 @@ vector Spawn_Score(entity this, entity spot, float mindist, float teamcheck, boo
 
 	float prio = 0;
 	float shortest = vlen(world.maxs - world.mins);
-	FOREACH_CLIENT(IS_PLAYER(it) && it != this, {
+	FOREACH_CLIENT(IS_PLAYER(it) && !IS_DEAD(it) && it != this, {
 		float thisdist = vlen(it.origin - spot.origin);
 		if (thisdist < shortest)
 			shortest = thisdist;

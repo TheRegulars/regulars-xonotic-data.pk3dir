@@ -20,6 +20,7 @@
 #include "clientkill.qh"
 #include "cheats.qh"
 #include "g_world.qh"
+#include <server/gamelog.qh>
 #include "race.qh"
 #include "antilag.qh"
 #include "campaign.qh"
@@ -38,6 +39,7 @@
 #include <common/effects/qc/globalsound.qh>
 
 #include "../common/mapobjects/func/conveyor.qh"
+#include <common/mapobjects/func/ladder.qh>
 #include "../common/mapobjects/teleporters.qh"
 #include "../common/mapobjects/target/spawnpoint.qh"
 #include <common/mapobjects/trigger/counter.qh>
@@ -703,6 +705,9 @@ void PutPlayerInServer(entity this)
 		IL_REMOVE(g_swamped, this);
 	this.swampslug = NULL;
 	this.swamp_interval = 0;
+	if(this.ladder_entity)
+		IL_REMOVE(g_ladderents, this);
+	this.ladder_entity = NULL;
 	IL_EACH(g_counters, it.realowner == this,
 	{
 		delete(it);
@@ -1336,12 +1341,14 @@ void UpdateChatBubble(entity this)
 
 void respawn(entity this)
 {
+	bool damagedbycontents_prev = this.damagedbycontents;
 	if(this.alpha >= 0)
 	{
 		if(autocvar_g_respawn_ghosts)
 		{
 			this.solid = SOLID_NOT;
 			this.takedamage = DAMAGE_NO;
+			this.damagedbycontents = false;
 			set_movetype(this, MOVETYPE_FLY);
 			this.velocity = '0 0 1' * autocvar_g_respawn_ghosts_speed;
 			this.avelocity = randomvec() * autocvar_g_respawn_ghosts_speed * 3 - randomvec() * autocvar_g_respawn_ghosts_speed * 3;
@@ -1356,6 +1363,7 @@ void respawn(entity this)
 	}
 
 	CopyBody(this, 1);
+	this.damagedbycontents = damagedbycontents_prev;
 
 	this.effects |= EF_NODRAW; // prevent another CopyBody
 	PutClientInServer(this);
@@ -2028,10 +2036,10 @@ int nJoinAllowed(entity this, entity ignore)
 
 	int player_limit = GetPlayerLimit();
 
-	float free_slots = 0;
+	int free_slots = 0;
 	if (!player_limit)
 		free_slots = maxclients - totalClients;
-	else if(currentlyPlaying < player_limit)
+	else if(player_limit > 0 && currentlyPlaying < player_limit)
 		free_slots = min(maxclients - totalClients, player_limit - currentlyPlaying);
 
 	static float msg_time = 0;
@@ -2120,7 +2128,6 @@ void PrintWelcomeMessage(entity this)
 	}
 }
 
-const int MIN_SPEC_TIME = 1;
 bool joinAllowed(entity this)
 {
 	if (CS(this).version_mismatch) return false;
@@ -2280,49 +2287,16 @@ bool PlayerThink(entity this)
 }
 
 .bool would_spectate;
-void ObserverThink(entity this)
+void ObserverOrSpectatorThink(entity this)
 {
+	bool is_spec = IS_SPEC(this);
 	if ( CS(this).impulse )
 	{
-		MinigameImpulse(this, CS(this).impulse);
-		CS(this).impulse = 0;
-	}
-
-	if (this.flags & FL_JUMPRELEASED) {
-		if (PHYS_INPUT_BUTTON_JUMP(this) && joinAllowed(this)) {
-			this.flags &= ~FL_JUMPRELEASED;
-			this.flags |= FL_SPAWNING;
-		} else if(PHYS_INPUT_BUTTON_ATCK(this) && !CS(this).version_mismatch || this.would_spectate) {
-			this.flags &= ~FL_JUMPRELEASED;
-			if(SpectateNext(this)) {
-				TRANSMUTE(Spectator, this);
-			}
-		} else {
-			int preferred_movetype = ((!PHYS_INPUT_BUTTON_USE(this) ? CS(this).cvar_cl_clippedspectating : !CS(this).cvar_cl_clippedspectating) ? MOVETYPE_FLY_WORLDONLY : MOVETYPE_NOCLIP);
-			set_movetype(this, preferred_movetype);
-		}
-	} else {
-		if (!(PHYS_INPUT_BUTTON_ATCK(this) || PHYS_INPUT_BUTTON_JUMP(this))) {
-			this.flags |= FL_JUMPRELEASED;
-			if(this.flags & FL_SPAWNING)
-			{
-				this.flags &= ~FL_SPAWNING;
-				if(joinAllowed(this))
-					Join(this);
-				return;
-			}
-		}
-	}
-}
-
-void SpectatorThink(entity this)
-{
-	if ( CS(this).impulse )
-	{
-		if(MinigameImpulse(this, CS(this).impulse))
+		int r = MinigameImpulse(this, CS(this).impulse);
+		if (!is_spec || r)
 			CS(this).impulse = 0;
 
-		if (CS(this).impulse == IMP_weapon_drop.impulse)
+		if (is_spec && CS(this).impulse == IMP_weapon_drop.impulse)
 		{
 			STAT(CAMERA_SPECTATOR, this) = (STAT(CAMERA_SPECTATOR, this) + 1) % 3;
 			CS(this).impulse = 0;
@@ -2331,57 +2305,63 @@ void SpectatorThink(entity this)
 	}
 
 	if (this.flags & FL_JUMPRELEASED) {
-		if (PHYS_INPUT_BUTTON_JUMP(this) && joinAllowed(this)) {
+		if (PHYS_INPUT_BUTTON_JUMP(this) && (joinAllowed(this) || time < CS(this).jointime + MIN_SPEC_TIME)) {
 			this.flags &= ~FL_JUMPRELEASED;
 			this.flags |= FL_SPAWNING;
-		} else if(PHYS_INPUT_BUTTON_ATCK(this) || CS(this).impulse == 10 || CS(this).impulse == 15 || CS(this).impulse == 18 || (CS(this).impulse >= 200 && CS(this).impulse <= 209)) {
+		} else if((is_spec && (PHYS_INPUT_BUTTON_ATCK(this) || CS(this).impulse == 10 || CS(this).impulse == 15 || CS(this).impulse == 18 || (CS(this).impulse >= 200 && CS(this).impulse <= 209)))
+			|| (!is_spec && ((PHYS_INPUT_BUTTON_ATCK(this) && !CS(this).version_mismatch) || this.would_spectate))) {
 			this.flags &= ~FL_JUMPRELEASED;
 			if(SpectateNext(this)) {
 				TRANSMUTE(Spectator, this);
-			} else {
+			} else if (is_spec) {
 				TRANSMUTE(Observer, this);
 				PutClientInServer(this);
 			}
-			CS(this).impulse = 0;
-		} else if(CS(this).impulse == 12 || CS(this).impulse == 16  || CS(this).impulse == 19 || (CS(this).impulse >= 220 && CS(this).impulse <= 229)) {
-			this.flags &= ~FL_JUMPRELEASED;
-			if(SpectatePrev(this)) {
-				TRANSMUTE(Spectator, this);
-			} else {
-				TRANSMUTE(Observer, this);
-				PutClientInServer(this);
-			}
-			CS(this).impulse = 0;
-		} else if (PHYS_INPUT_BUTTON_ATCK2(this)) {
-			this.would_spectate = false;
-			this.flags &= ~FL_JUMPRELEASED;
-			TRANSMUTE(Observer, this);
-			PutClientInServer(this);
-		} else {
-			if(!SpectateUpdate(this))
-			{
-				if(!SpectateNext(this))
-				{
-					PutObserverInServer(this);
-					this.would_spectate = true;
+			if (is_spec)
+				CS(this).impulse = 0;
+		} else if (is_spec) {
+			if(CS(this).impulse == 12 || CS(this).impulse == 16  || CS(this).impulse == 19 || (CS(this).impulse >= 220 && CS(this).impulse <= 229)) {
+				this.flags &= ~FL_JUMPRELEASED;
+				if(SpectatePrev(this)) {
+					TRANSMUTE(Spectator, this);
+				} else {
+					TRANSMUTE(Observer, this);
+					PutClientInServer(this);
 				}
+				CS(this).impulse = 0;
+			} else if(PHYS_INPUT_BUTTON_ATCK2(this)) {
+				this.would_spectate = false;
+				this.flags &= ~FL_JUMPRELEASED;
+				TRANSMUTE(Observer, this);
+				PutClientInServer(this);
+			} else if(!SpectateUpdate(this) && !SpectateNext(this)) {
+				PutObserverInServer(this);
+				this.would_spectate = true;
 			}
 		}
+		else {
+			int preferred_movetype = ((!PHYS_INPUT_BUTTON_USE(this) ? CS(this).cvar_cl_clippedspectating : !CS(this).cvar_cl_clippedspectating) ? MOVETYPE_FLY_WORLDONLY : MOVETYPE_NOCLIP);
+			set_movetype(this, preferred_movetype);
+		}
 	} else {
-		if (!(PHYS_INPUT_BUTTON_ATCK(this) || PHYS_INPUT_BUTTON_ATCK2(this))) {
+		if ((is_spec && !(PHYS_INPUT_BUTTON_ATCK(this) || PHYS_INPUT_BUTTON_ATCK2(this)))
+			|| (!is_spec && !(PHYS_INPUT_BUTTON_ATCK(this) || PHYS_INPUT_BUTTON_JUMP(this)))) {
 			this.flags |= FL_JUMPRELEASED;
 			if(this.flags & FL_SPAWNING)
 			{
 				this.flags &= ~FL_SPAWNING;
-				Join(this);
+				if(joinAllowed(this))
+					Join(this);
+				else if(time < CS(this).jointime + MIN_SPEC_TIME)
+					CS(this).autojoin_checked = -1;
 				return;
 			}
 		}
-		if(!SpectateUpdate(this))
+		if(is_spec && !SpectateUpdate(this))
 			PutObserverInServer(this);
 	}
-
-	this.flags |= FL_CLIENT | FL_NOTARGET;
+	if (is_spec)
+		this.flags |= FL_CLIENT | FL_NOTARGET;
 }
 
 void PlayerUseKey(entity this)
@@ -2512,7 +2492,8 @@ void PlayerPreThink (entity this)
 		{
 			STAT(REVIVE_PROGRESS, this) = bound(0, STAT(REVIVE_PROGRESS, this) + frametime * this.revive_speed, 1);
 			SetResourceExplicit(this, RES_HEALTH, max(1, STAT(REVIVE_PROGRESS, this) * start_health));
-			this.iceblock.alpha = bound(0.2, 1 - STAT(REVIVE_PROGRESS, this), 1);
+			if (this.iceblock)
+				this.iceblock.alpha = bound(0.2, 1 - STAT(REVIVE_PROGRESS, this), 1);
 
 			if (STAT(REVIVE_PROGRESS, this) >= 1)
 				Unfreeze(this, false);
@@ -2578,25 +2559,24 @@ void PlayerPreThink (entity this)
 			IntermissionThink(this);
 		return;
 	}
-	else if (IS_REAL_CLIENT(this) && !CS(this).autojoin_checked && time >= CS(this).jointime + MIN_SPEC_TIME)
+	else if (IS_REAL_CLIENT(this) && CS(this).autojoin_checked <= 0 && time >= CS(this).jointime + MIN_SPEC_TIME)
 	{
-		CS(this).autojoin_checked = true;
+		bool early_join_requested = (CS(this).autojoin_checked < 0);
+		CS(this).autojoin_checked = 1;
 		// don't do this in ClientConnect
 		// many things can go wrong if a client is spawned as player on connection
-		if (MUTATOR_CALLHOOK(AutoJoinOnConnection, this)
+		if (early_join_requested || MUTATOR_CALLHOOK(AutoJoinOnConnection, this)
 			|| (!(autocvar_sv_spectate || autocvar_g_campaign || (Player_GetForcedTeamIndex(this) == TEAM_FORCE_SPECTATOR))
 				&& (!teamplay || autocvar_g_balance_teams)))
 		{
 			campaign_bots_may_start = true;
-			Join(this);
+			if(joinAllowed(this))
+				Join(this);
 			return;
 		}
 	}
-	else if (IS_OBSERVER(this)) {
-		ObserverThink(this);
-	}
-	else if (IS_SPEC(this)) {
-		SpectatorThink(this);
+	else if (IS_OBSERVER(this) || IS_SPEC(this)) {
+		ObserverOrSpectatorThink(this);
 	}
 
 	// WEAPONTODO: Add weapon request for this
@@ -2610,7 +2590,7 @@ void PlayerPreThink (entity this)
 				wep_zoomed += thiswep.wr_zoom(thiswep, this);
 		}
 		SetZoomState(this, PHYS_INPUT_BUTTON_ZOOM(this) || PHYS_INPUT_BUTTON_ZOOMSCRIPT(this) || wep_zoomed);
-    }
+	}
 
 	if (CS(this).teamkill_soundtime && time > CS(this).teamkill_soundtime)
 	{
@@ -2750,6 +2730,9 @@ void PlayerPostThink (entity this)
 		this.solid = SOLID_NOT;
 		this.takedamage = DAMAGE_NO;
 		set_movetype(this, MOVETYPE_NONE);
+		CS(this).teamkill_complain = 0;
+		CS(this).teamkill_soundtime = 0;
+		CS(this).teamkill_soundsource = NULL;
 	}
 
 	if (IS_PLAYER(this)) {
@@ -3155,7 +3138,7 @@ void PM_UpdateButtons(entity this, entity store)
 	store.ping_movementloss = this.ping_movementloss;
 
 	store.v_angle = this.v_angle;
-	store.movement = (typing) ? '0 0 0' : this.movement;
+	store.movement = this.movement;
 }
 
 NET_HANDLE(fpsreport, bool)
