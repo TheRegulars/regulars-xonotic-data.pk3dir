@@ -1,8 +1,13 @@
 #include "sv_cts.qh"
 
+#include <server/client.qh>
 #include <server/race.qh>
+#include <server/world.qh>
 #include <server/gamelog.qh>
-#include <server/items.qh>
+#include <server/intermission.qh>
+#include <server/items/spawning.qh>
+#include <server/weapons/common.qh>
+#include <common/mapobjects/triggers.qh>
 
 float autocvar_g_cts_finish_kill_delay;
 bool autocvar_g_cts_selfdamage;
@@ -66,16 +71,26 @@ void cts_EventLog(string mode, entity actor) // use an alias for easy changing a
 		GameLogEcho(strcat(":cts:", mode, ":", ((actor != NULL) ? (strcat(":", ftos(actor.playerid))) : "")));
 }
 
-MUTATOR_HOOKFUNCTION(cts, PlayerPhysics)
+MUTATOR_HOOKFUNCTION(cts, PlayerPreThink)
 {
 	entity player = M_ARGV(0, entity);
-	float dt = M_ARGV(1, float);
 
+	if(!IS_PLAYER(player))
+		return;
+
+	// we need to perform this in PlayerPreThink as PlayerPhysics may not be called (vehicle support)
+	float dt = frametime;
 	player.race_movetime_frac += dt;
 	float f = floor(player.race_movetime_frac);
 	player.race_movetime_frac -= f;
 	player.race_movetime_count += f;
 	player.race_movetime = player.race_movetime_frac + player.race_movetime_count;
+}
+
+MUTATOR_HOOKFUNCTION(cts, PlayerPhysics)
+{
+	entity player = M_ARGV(0, entity);
+	//float dt = M_ARGV(1, float);
 
 	if(IS_PLAYER(player))
 	{
@@ -144,7 +159,7 @@ MUTATOR_HOOKFUNCTION(cts, reset_map_global)
 	Score_NicePrint(NULL);
 
 	race_ClearRecords();
-	PlayerScore_Sort(race_place, 0, 1, 0);
+	PlayerScore_Sort(race_place, 0, true, false);
 
 	FOREACH_CLIENT(true, {
 		if(it.race_place)
@@ -277,7 +292,7 @@ MUTATOR_HOOKFUNCTION(cts, GetPressedKeys)
 {
 	entity player = M_ARGV(0, entity);
 
-	if(CS(player).cvar_cl_allow_uidtracking == 1 && CS(player).cvar_cl_allow_uid2name == 1)
+	if(CS_CVAR(player).cvar_cl_allow_uidtracking == 1 && CS_CVAR(player).cvar_cl_allow_uid2name == 1)
 	{
 		if (!player.stored_netname)
 			player.stored_netname = strzone(uid2name(player.crypto_idfp));

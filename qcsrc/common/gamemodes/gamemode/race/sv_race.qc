@@ -1,7 +1,12 @@
 #include "sv_race.qh"
 
+#include <server/client.qh>
+#include <server/world.qh>
 #include <server/gamelog.qh>
+#include <server/intermission.qh>
 #include <server/race.qh>
+#include <common/ent_cs.qh>
+#include <common/mapobjects/triggers.qh>
 
 #define autocvar_g_race_laps_limit cvar("g_race_laps_limit")
 float autocvar_g_race_qualifying_timelimit;
@@ -123,16 +128,26 @@ MUTATOR_HOOKFUNCTION(rc, AbortSpeedrun)
 		race_PreparePlayer(player); // nice try
 }
 
-MUTATOR_HOOKFUNCTION(rc, PlayerPhysics)
+MUTATOR_HOOKFUNCTION(rc, PlayerPreThink)
 {
 	entity player = M_ARGV(0, entity);
-	float dt = M_ARGV(1, float);
 
+	if(!IS_PLAYER(player))
+		return;
+
+	// we need to perform this in PlayerPreThink as PlayerPhysics may not be called (vehicle support)
+	float dt = frametime;
 	player.race_movetime_frac += dt;
 	float f = floor(player.race_movetime_frac);
 	player.race_movetime_frac -= f;
 	player.race_movetime_count += f;
 	player.race_movetime = player.race_movetime_frac + player.race_movetime_count;
+}
+
+MUTATOR_HOOKFUNCTION(rc, PlayerPhysics)
+{
+	entity player = M_ARGV(0, entity);
+	//float dt = M_ARGV(1, float);
 
 #ifdef SVQC
 	if(IS_PLAYER(player))
@@ -203,7 +218,7 @@ MUTATOR_HOOKFUNCTION(rc, reset_map_global)
 	Score_NicePrint(NULL);
 
 	race_ClearRecords();
-	PlayerScore_Sort(race_place, 0, 1, 0);
+	PlayerScore_Sort(race_place, 0, true, false);
 
 	FOREACH_CLIENT(true, {
 		if(it.race_place)
@@ -323,7 +338,7 @@ MUTATOR_HOOKFUNCTION(rc, GetPressedKeys)
 {
 	entity player = M_ARGV(0, entity);
 
-	if(CS(player).cvar_cl_allow_uidtracking == 1 && CS(player).cvar_cl_allow_uid2name == 1)
+	if(CS_CVAR(player).cvar_cl_allow_uidtracking == 1 && CS_CVAR(player).cvar_cl_allow_uid2name == 1)
 	{
 		if (!player.stored_netname)
 			player.stored_netname = strzone(uid2name(player.crypto_idfp));
@@ -445,6 +460,7 @@ void race_Initialize()
 	race_ScoreRules();
 	if(g_race_qualifying == 2)
 		warmup_stage = 0;
+	radar_showenemies = true;
 }
 
 void rc_SetLimits()

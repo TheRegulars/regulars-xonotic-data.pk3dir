@@ -111,6 +111,8 @@
 
     MSG_ANNCE_NOTIF(BEGIN,                      N__ALWAYS, "begin",             CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
 
+    MSG_ANNCE_NOTIF(HEADSHOT,                   N__ALWAYS, "headshot",          CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
+
     MSG_ANNCE_NOTIF(KILLSTREAK_03,              N_GNTLOFF, "03kills",           CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
     MSG_ANNCE_NOTIF(KILLSTREAK_05,              N_GNTLOFF, "05kills",           CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
     MSG_ANNCE_NOTIF(KILLSTREAK_10,              N_GNTLOFF, "10kills",           CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
@@ -205,7 +207,6 @@
     MSG_ANNCE_NOTIF(VOTE_ACCEPT,                N__ALWAYS, "voteaccept",        CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
     MSG_ANNCE_NOTIF(VOTE_CALL,                  N__ALWAYS, "votecall",          CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
     MSG_ANNCE_NOTIF(VOTE_FAIL,                  N__ALWAYS, "votefail",          CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
-    MSG_ANNCE_NOTIF(HEADSHOT,                   N__ALWAYS, "headshot",          CH_INFO, VOL_BASEVOICE, ATTEN_NONE)
 
 #undef N___NEVER
 #undef N_GNTLOFF
@@ -443,8 +444,6 @@ string multiteam_info_sprintf(string input, string teamname) { return ((input !=
     MSG_INFO_NOTIF(VERSION_OLD,                             N_CHATCON,  2, 0, "s1 s2", "",      "",                     _("^F4NOTE: ^BGThe server is running ^F1Xonotic %s^BG, you have ^F2Xonotic %s"), "")
     MSG_INFO_NOTIF(VERSION_OUTDATED,                        N_CHATCON,  2, 0, "s1 s2", "",      "",                     _("^F4NOTE: ^F1Xonotic %s^BG is out, and you still have ^F2Xonotic %s^BG - get the update from ^F3http://www.xonotic.org/^BG!"), "")
 
-    MSG_INFO_NOTIF(WATERMARK,                               N_CONSOLE,  1, 0, "s1", "",         "",                     _("^F3SVQC Build information: ^F4%s"), "")
-
     MSG_INFO_NOTIF(WEAPON_ACCORDEON_MURDER,                 N_CONSOLE,  3, 2, "spree_inf s1 s2 s3loc spree_end", "s2 s1",       "weapontuba",               _("^BG%s%s^K1 died of ^BG%s^K1's great playing on the @!#%%'n Accordeon%s%s"), "")
     MSG_INFO_NOTIF(WEAPON_ACCORDEON_SUICIDE,                N_CONSOLE,  2, 1, "s1 s2loc spree_lost", "s1",                      "weapontuba",               _("^BG%s^K1 hurt their own ears with the @!#%%'n Accordeon%s%s"), "")
     MSG_INFO_NOTIF(WEAPON_ARC_MURDER,                       N_CONSOLE,  3, 2, "spree_inf s1 s2 s3loc spree_end", "s2 s1",       "weaponarc",                _("^BG%s%s^K1 was electrocuted by ^BG%s^K1's Arc%s%s"), "")
@@ -668,7 +667,7 @@ string multiteam_info_sprintf(string input, string teamname) { return ((input !=
     MSG_CENTER_NOTIF(FREEZETAG_REVIVE,                  N_ENABLE,    1, 0, "s1",             CPID_Null,              "0 0",  _("^K3You revived ^BG%s"), "")
     MSG_CENTER_NOTIF(FREEZETAG_REVIVE_SELF,             N_ENABLE,    0, 0, "",               CPID_Null,              "0 0",  _("^K3You revived yourself"), "")
     MSG_CENTER_NOTIF(FREEZETAG_REVIVED,                 N_ENABLE,    1, 0, "s1",             CPID_Null,              "0 0",  _("^K3You were revived by ^BG%s"), "")
-    MSG_CENTER_NOTIF(FREEZETAG_AUTO_REVIVED,            N_ENABLE,    0, 1, "f1",             CPID_Null,              "0 0",  _("^K3You were automatically revived after %s seconds"), "")
+    MSG_CENTER_NOTIF(FREEZETAG_AUTO_REVIVED,            N_ENABLE,    0, 1, "f1",             CPID_Null,              "0 0",  _("^BGYou were automatically revived after %s seconds"), "")
 
     MSG_CENTER_NOTIF(GENERATOR_UNDERATTACK,             N_ENABLE,    0, 0, "",               CPID_Null,              "0 0",  _("^BGThe generator is under attack!"), "")
 
@@ -781,7 +780,6 @@ string multiteam_info_sprintf(string input, string teamname) { return ((input !=
     MSG_CENTER_NOTIF(VEHICLE_STEAL_SELF,                N_ENABLE,    0, 0, "",               CPID_VEHICLES_OTHER,    "4 0",  _("^F2Intruder detected, disabling shields!"), "")
 
     MSG_CENTER_NOTIF(WEAPON_MINELAYER_LIMIT,            N_ENABLE,    0, 1, "f1",             CPID_Null,              "0 0",  _("^BGYou cannot place more than ^F2%s^BG mines at a time"), "")
-    MSG_CENTER_NOTIF(HEADSHOT, N_ENABLE, 0, 0, "", CPID_Null, "0 0", "^F2Headshot!", "")
 
 #undef N_DISABL
 #undef N_ENABLE
@@ -958,7 +956,6 @@ string multiteam_info_sprintf(string input, string teamname) { return ((input !=
     MSG_MULTI_NOTIF(WEAPON_TUBA_SUICIDE,                N_ENABLE,  NULL,           INFO_WEAPON_TUBA_SUICIDE,               CENTER_DEATH_SELF_GENERIC)
     MSG_MULTI_NOTIF(WEAPON_VAPORIZER_MURDER,            N_ENABLE,  NULL,           INFO_WEAPON_VAPORIZER_MURDER,           NULL)
     MSG_MULTI_NOTIF(WEAPON_VORTEX_MURDER,               N_ENABLE,  NULL,           INFO_WEAPON_VORTEX_MURDER,              NULL)
-    MSG_MULTI_NOTIF(HEADSHOT, N_ENABLE,  ANNCE_HEADSHOT, NULL, CENTER_HEADSHOT)
 
 #define MULTITEAM_CHOICE(prefix, defaultvalue, challow, chtype, optiona, optionb) \
     NOTIF_ADD_AUTOCVAR(CHOICE_##prefix, defaultvalue) \

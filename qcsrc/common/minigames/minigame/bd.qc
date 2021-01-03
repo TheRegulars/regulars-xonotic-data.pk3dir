@@ -437,7 +437,7 @@ void bd_editor_place(entity minigame, entity player, string pos, int thetile, st
 			}
 			else
 			{
-				entity piece = msle_spawn(minigame,"minigame_board_piece");
+				entity piece = msle_spawn(minigame,new(minigame_board_piece));
 				piece.team = 1;
 				piece.netname = strzone(pos);
 				piece.bd_tiletype = thetile;
@@ -711,7 +711,7 @@ void bd_load_piece(entity minigame, string s)
 	}
 	else
 	{
-		entity e = msle_spawn(minigame,"minigame_board_piece");
+		entity e = msle_spawn(minigame,new(minigame_board_piece));
 		e.netname = tilename;
 		e.team = 1;
 		e.bd_dir = dir;
@@ -1143,9 +1143,10 @@ void bd_hud_status(vector pos, vector mySize)
 			string thepiece = "bd/dozer";
 			if(active_minigame.minigame_flags & BD_TURN_EDIT)
 				thepiece = bd_get_tile_pic(bd_curr_tile);
-			drawpic( mypos,
+			const float tile_scale = 0.7;
+			drawpic( mypos + tile_size * 0.5 * (1 - tile_scale),
 					minigame_texture(thepiece),
-					tile_size * 0.7, '1 1 1', panel_fg_alpha, DRAWFLAG_NORMAL );
+					tile_size * tile_scale, '1 1 1', panel_fg_alpha, DRAWFLAG_NORMAL );
 
 			mypos_x += tile_size_x;
 

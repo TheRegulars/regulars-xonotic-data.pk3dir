@@ -1,7 +1,11 @@
 #include "state.qh"
 
+#include <server/command/getreplies.qh>
+
 void Inventory_new(PlayerState this);
 void Inventory_delete(entity this);
+void InventoryStorage_attach(PlayerState this);
+void InventoryStorage_detach(PlayerState this);
 
 void PlayerState_attach(entity this)
 {
@@ -27,7 +31,6 @@ void PlayerState_detach(entity this)
 	delete(ps);
 }
 
-void GetCvars(entity this, entity store, int);
 void DecodeLevelParms(entity this);
 void PlayerScore_Attach(entity this);
 void ClientData_Attach(entity this);
@@ -52,6 +55,7 @@ void ClientState_attach(entity this)
 	entcs_attach(this);
 	anticheat_init(this);
 	W_HitPlotOpen(this);
+	InventoryStorage_attach(this);
 }
 
 void bot_clientdisconnect(entity this);
@@ -64,12 +68,13 @@ void PlayerScore_Detach(entity this);
 
 void ClientState_detach(entity this)
 {
-    GetCvars(this, CS(this), -1);  // free cvars TODO: is this still needed now that it's stored on the clientstate entity?
+    GetCvars(this, CS_CVAR(this), -1);  // free cvars TODO: is this still needed now that it's stored on the clientstate entity?
     accuracy_free(this); // TODO: needs to be before CS() is deleted!
     PlayerScore_Detach(this); // what ^they^ said
     W_HitPlotClose(this);
     ClientData_Detach(this);
     entcs_detach(this);
+    InventoryStorage_detach(this);
 	delete(CS(this));
 	this._cs = NULL;
 

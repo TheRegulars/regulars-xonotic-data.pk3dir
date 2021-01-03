@@ -1,8 +1,13 @@
 #include "ent_cs.qh"
-#include <common/gamemodes/_mod.qh>
-#include <common/resources.qh>
-#ifdef SVQC
-#include <server/resources.qh>
+
+#if defined(CSQC)
+	#include <common/gamemodes/_mod.qh>
+	#include <common/resources.qh>
+#elif defined(MENUQC)
+#elif defined(SVQC)
+	#include <common/gamemodes/_mod.qh>
+	#include <common/resources.qh>
+	#include <server/resources.qh>
 #endif
 
 REGISTRY(EntCSProps, BITS(16) - 1)
@@ -170,7 +175,7 @@ ENTCS_PROP(SOLID, true, sv_solid, solid, ENTCS_SET_NORMAL,
 		do {
 			if (IS_PLAYER(player))
 			{
-				if (radar_showennemies) break;
+				if (radar_showenemies) break;
 				if (SAME_TEAM(to, player)) break;
 				if (!(IS_PLAYER(to) || to.caplayer) && time > game_starttime) break;
 			}
@@ -216,11 +221,14 @@ ENTCS_PROP(SOLID, true, sv_solid, solid, ENTCS_SET_NORMAL,
 		setthink(e, entcs_think);
 		e.nextthink = time;
 		Net_LinkEntity(e, false, 0, entcs_send);
+		// NOTE: the following code block has been disabled as a workaround for https://gitlab.com/xonotic/xonotic-data.pk3dir/-/issues/1824
+#if 0
 		if (!IS_REAL_CLIENT(player)) return;
 		FOREACH_CLIENT(true, {
 			assert(CS(it).entcs);
 			_entcs_send(CS(it).entcs, msg_entity = player, BITS(23), MSG_ONE);
 		});
+#endif
 	}
 
 	void entcs_detach(entity player)
@@ -269,7 +277,7 @@ ENTCS_PROP(SOLID, true, sv_solid, solid, ENTCS_SET_NORMAL,
 		{
 			if (!this)
 				// initial = temp
-				e = new_pure(entcs_receiver);
+				e = new_pure(ENT_CLIENT_ENTCS);
 			else
 				// initial = linked
 				e = this;
@@ -305,7 +313,6 @@ ENTCS_PROP(SOLID, true, sv_solid, solid, ENTCS_SET_NORMAL,
 		if (isnew)
 		{
 			make_pure(this);
-			this.classname = "entcs_receiver";
 			this.entremove = Ent_RemoveEntCS;
 		}
 		return ReadEntcs(this);

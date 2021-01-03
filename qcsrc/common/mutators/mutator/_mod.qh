@@ -41,4 +41,3 @@
 #include <common/mutators/mutator/walljump/_mod.qh>
 #include <common/mutators/mutator/waypoints/_mod.qh>
 #include <common/mutators/mutator/weaponarena_random/_mod.qh>
-#include <common/mutators/mutator/headshot/_mod.qh>

@@ -6,6 +6,8 @@
 /** If this global exists, only functions with spawnfunc_ name prefix qualify as spawn functions */
 noref bool require_spawnfunc_prefix;
 .bool spawnfunc_checked;
+/** Not for production use, provides access to a dump of the entity's fields when it is parsed from map data */
+//noref string __fullspawndata;
 
 // Optional type checking; increases compile time too much to be enabled by default
 #if 0
@@ -275,11 +277,15 @@ noref bool __spawnfunc_first;
 		if (!this.sourceLoc) { \
 			this.sourceLoc = __FILE__":"STR(__LINE__); \
 		} \
+		this.classname = #id; \
 		if (!this.spawnfunc_checked) { \
 			_checkWhitelisted(this, #id); \
 			this.spawnfunc_checked = true; \
 			if (this) { \
 				/* not worldspawn, delay spawn */ \
+				/* clear some dangerous fields (TODO: properly support these in the map!) */ \
+				this.think = func_null; \
+				this.nextthink = 0; \
 				__spawnfunc_defer(this, __spawnfunc_##id); \
 			} else { \
 				/* world might not be "worldspawn" */ \

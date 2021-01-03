@@ -4,10 +4,6 @@
 
 	#include <common/animdecide.qh>
 
-	#ifdef SVQC
-		#include <server/player.qh>
-	#endif
-
 	REGISTER_NET_TEMP(globalsound)
 	REGISTER_NET_TEMP(playersound)
 
@@ -335,7 +331,7 @@
 						msg_entity = this.pusher;
 						if (IS_REAL_CLIENT(msg_entity))
 						{
-							float atten = (CS(msg_entity).cvar_cl_voice_directional == 1) ? ATTEN_MIN : ATTEN_NONE;
+							float atten = (CS_CVAR(msg_entity).cvar_cl_voice_directional == 1) ? ATTEN_MIN : ATTEN_NONE;
 							if (gs) globalsound(MSG_ONE, this, gs, r, chan, vol, atten, thepitch);
 							else if (ps) playersound(MSG_ONE, this, ps, r, chan, vol, atten, thepitch);
 							else soundto(MSG_ONE, this, chan, sample, vol, atten, thepitch);
@@ -355,7 +351,7 @@
 				{
 					#define X() \
 						MACRO_BEGIN \
-							float atten = (CS(msg_entity).cvar_cl_voice_directional == 1) ? ATTEN_MIN : ATTEN_NONE; \
+							float atten = (CS_CVAR(msg_entity).cvar_cl_voice_directional == 1) ? ATTEN_MIN : ATTEN_NONE; \
 							if (gs) globalsound(MSG_ONE, this, gs, r, chan, vol, atten, thepitch); \
 							else if (ps) playersound(MSG_ONE, this, ps, r, chan, vol, atten, thepitch); \
 							else soundto(MSG_ONE, this, chan, sample, vol, atten, thepitch); \
@@ -377,22 +373,22 @@
 				{
 					if (voicetype == VOICETYPE_AUTOTAUNT)
 					{
-						if (!sv_autotaunt) break;
+						if (!autocvar_sv_autotaunt) break;
 					}
 					else if (IS_PLAYER(this) && !IS_DEAD(this))
 						animdecide_setaction(this, ANIMACTION_TAUNT, true);
 
-					if (!sv_taunt) break;
+					if (!autocvar_sv_taunt) break;
 					if (autocvar_sv_gentle) break;
 					float tauntrand = 0;
 					if (voicetype == VOICETYPE_AUTOTAUNT) tauntrand = random();
 
 					#define X() \
 						MACRO_BEGIN \
-							if (voicetype != VOICETYPE_AUTOTAUNT || tauntrand < CS(msg_entity).cvar_cl_autotaunt) \
+							if (voicetype != VOICETYPE_AUTOTAUNT || tauntrand < CS_CVAR(msg_entity).cvar_cl_autotaunt) \
 							{ \
-								float atten = (CS(msg_entity).cvar_cl_voice_directional >= 1) \
-									? bound(ATTEN_MIN, CS(msg_entity).cvar_cl_voice_directional_taunt_attenuation, \
+								float atten = (CS_CVAR(msg_entity).cvar_cl_voice_directional >= 1) \
+									? bound(ATTEN_MIN, CS_CVAR(msg_entity).cvar_cl_voice_directional_taunt_attenuation, \
 									ATTEN_MAX) \
 									: ATTEN_NONE; \
 								if (gs) globalsound(MSG_ONE, this, gs, r, chan, vol, atten, thepitch); \

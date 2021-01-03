@@ -1,50 +1,41 @@
 #include "view.qh"
 
-#include "autocvars.qh"
-#include "miscfunctions.qh"
-#include "announcer.qh"
-#include "hud/_mod.qh"
-#include "mapvoting.qh"
-#include "shownames.qh"
-#include "hud/panel/scoreboard.qh"
-#include "hud/panel/quickmenu.qh"
-
+#include <client/announcer.qh>
+#include <client/csqcmodel_hooks.qh>
+#include <client/draw.qh>
+#include <client/hud/_mod.qh>
+#include <client/hud/panel/quickmenu.qh>
+#include <client/hud/panel/scoreboard.qh>
+#include <client/mapvoting.qh>
 #include <client/mutators/_mod.qh>
-
-#include <common/animdecide.qh>
-#include <common/deathtypes/all.qh>
-#include <common/ent_cs.qh>
+#include <client/shownames.qh>
 #include <common/anim.qh>
+#include <common/animdecide.qh>
 #include <common/constants.qh>
-#include <common/net_linked.qh>
-#include <common/net_notice.qh>
+#include <common/deathtypes/all.qh>
 #include <common/debug.qh>
-#include <common/mapinfo.qh>
+#include <common/ent_cs.qh>
 #include <common/gamemodes/_mod.qh>
-#include <common/physics/player.qh>
-#include <common/stats.qh>
+#include <common/mapinfo.qh>
 #include <common/mapobjects/target/music.qh>
-#include <common/teams.qh>
-#include <common/wepent.qh>
-
-#include <common/weapons/weapon/tuba.qh>
-
-#include <common/vehicles/all.qh>
-#include <common/weapons/_all.qh>
-#include <common/mutators/mutator/waypoints/all.qh>
-#include <common/viewloc.qh>
 #include <common/mapobjects/trigger/viewloc.qh>
 #include <common/minigames/cl_minigames.qh>
 #include <common/minigames/cl_minigames_hud.qh>
-
-#include <lib/csqcmodel/cl_player.qh>
+#include <common/mutators/mutator/waypoints/all.qh>
+#include <common/net_linked.qh>
+#include <common/net_notice.qh>
+#include <common/physics/player.qh>
+#include <common/stats.qh>
+#include <common/teams.qh>
+#include <common/vehicles/all.qh>
+#include <common/viewloc.qh>
+#include <common/weapons/_all.qh>
+#include <common/weapons/weapon/tuba.qh>
+#include <common/wepent.qh>
 #include <lib/csqcmodel/cl_model.qh>
-#include "csqcmodel_hooks.qh"
-
+#include <lib/csqcmodel/cl_player.qh>
 #include <lib/warpzone/client.qh>
 #include <lib/warpzone/common.qh>
-
-#define EFMASK_CHEAP (EF_ADDITIVE | EF_DOUBLESIDED | EF_FULLBRIGHT | EF_NODEPTHTEST | EF_NODRAW | EF_NOSHADOW | EF_SELECTABLE | EF_TELEPORT_BIT)
 
 float autocvar_cl_viewmodel_scale;
 float autocvar_cl_viewmodel_alpha = 1;
@@ -364,7 +355,33 @@ STATIC_INIT(viewmodel) {
     	viewmodels[slot] = new(viewmodel);
 }
 
-float showfps_prevfps;
+vector project_3d_to_2d(vector vec)
+{
+	vec = cs_project(vec);
+	if(cs_project_is_b0rked > 0)
+	{
+		vec.x *= vid_conwidth / vid_width;
+		vec.y *= vid_conheight / vid_height;
+	}
+	return vec;
+}
+
+bool projected_on_screen(vector screen_pos)
+{
+	return screen_pos.z >= 0
+		&& screen_pos.x >= 0
+		&& screen_pos.y >= 0
+		&& screen_pos.x < vid_conwidth
+		&& screen_pos.y < vid_conheight;
+}
+
+void update_mousepos()
+{
+	mousepos += getmousepos() * autocvar_menu_mouse_speed;
+	mousepos.x = bound(0, mousepos.x, vid_conwidth);
+	mousepos.y = bound(0, mousepos.y, vid_conheight);
+}
+
 float showfps_prevfps_time;
 int showfps_framecounter;
 
@@ -373,23 +390,24 @@ void fpscounter_update()
 	if(!STAT(SHOWFPS))
 		return;
 
-	float currentTime = gettime(GETTIME_REALTIME);
+	float currentTime = gettime(GETTIME_FRAMESTART);
+
 	showfps_framecounter += 1;
 	if(currentTime - showfps_prevfps_time > STAT(SHOWFPS))
 	{
-		showfps_prevfps = showfps_framecounter/(currentTime - showfps_prevfps_time);
+		float fps = showfps_framecounter / (currentTime - showfps_prevfps_time);
 		showfps_framecounter = 0;
 		showfps_prevfps_time = currentTime;
 
 		int channel = MSG_C2S;
 		WriteHeader(channel, fpsreport);
-		WriteShort(channel, bound(0, rint(showfps_prevfps), 65535)); // prevent insane fps values
+		WriteShort(channel, bound(0, rint(fps), 65535)); // prevent insane fps values
 	}
 }
 
 STATIC_INIT(fpscounter_init)
 {
-	float currentTime = gettime(GETTIME_REALTIME);
+	float currentTime = gettime(GETTIME_FRAMESTART);
 	showfps_prevfps_time = currentTime; // we must initialize it to avoid an instant low frame sending
 }
 
@@ -791,22 +809,22 @@ void HitSound()
 	{
 		if (autocvar_cl_hitsound && unaccounted_damage)
 		{
-			// customizable gradient function that crosses (0,a), (c,1) and asymptotically approaches b
-			float a = autocvar_cl_hitsound_max_pitch;
-			float b = autocvar_cl_hitsound_min_pitch;
-			float c = autocvar_cl_hitsound_nom_damage;
-			float d = unaccounted_damage;
-			float pitch_shift = (b*d*(a-1) + a*c*(1-b)) / (d*(a-1) + c*(1-b));
-
-			// if sound variation is disabled, set pitch_shift to 1
-			if (autocvar_cl_hitsound == 1)
-				pitch_shift = 1;
-
-			// if pitch shift is reversed, mirror in (max-min)/2 + min
-			if (autocvar_cl_hitsound == 3)
+			float pitch_shift = 1;
+			if (autocvar_cl_hitsound == 2 || autocvar_cl_hitsound == 3)
 			{
-				float mirror_value = (a-b)/2 + b;
-				pitch_shift = mirror_value + (mirror_value - pitch_shift);
+				// customizable gradient function that crosses (0,a), (c,1) and asymptotically approaches b
+				float a = autocvar_cl_hitsound_max_pitch;
+				float b = autocvar_cl_hitsound_min_pitch;
+				float c = autocvar_cl_hitsound_nom_damage;
+				float d = unaccounted_damage;
+				pitch_shift = (b*d*(a-1) + a*c*(1-b)) / (d*(a-1) + c*(1-b));
+
+				// if pitch shift is reversed, mirror in (max-min)/2 + min
+				if (autocvar_cl_hitsound == 3)
+				{
+					float mirror_value = (a-b)/2 + b;
+					pitch_shift = mirror_value + (mirror_value - pitch_shift);
+				}
 			}
 
 			//LOG_TRACE("dmg total (dmg): ", ftos(unaccounted_damage), " , pitch shift: ", ftos(pitch_shift));
@@ -925,9 +943,11 @@ void HUD_Draw(entity this)
 	else if(STAT(FROZEN))
 	{
 		vector col = '0.25 0.90 1';
-		if(STAT(REVIVE_PROGRESS))
-			col += vec3(STAT(REVIVE_PROGRESS), -STAT(REVIVE_PROGRESS), -STAT(REVIVE_PROGRESS));
-		drawfill('0 0 0', vec2(vid_conwidth, vid_conheight), col, autocvar_hud_colorflash_alpha, DRAWFLAG_ADDITIVE);
+		float col_fade = max(0, STAT(REVIVE_PROGRESS) * 2 - 1);
+		float alpha_fade = 0.3 + 0.7 * (1 - max(0, STAT(REVIVE_PROGRESS) * 4 - 3));
+		if(col_fade)
+			col += vec3(col_fade, -col_fade, -col_fade);
+		drawfill('0 0 0', vec2(vid_conwidth, vid_conheight), col, autocvar_hud_colorflash_alpha * alpha_fade, DRAWFLAG_ADDITIVE);
 	}
 
 	HUD_Scale_Enable();
@@ -1308,9 +1328,17 @@ void View_PostProcessing()
 
 void View_Lock()
 {
-	int lock_type = (!autocvar_hud_cursormode && ((autocvar__hud_configure && spectatee_status <= 0) || intermission > 1 || QuickMenu_IsOpened()));
-	if (lock_type == 0)
-		lock_type = autocvar_cl_lockview;
+	int lock_type = autocvar_cl_lockview;
+
+	if (!autocvar_hud_cursormode
+		&& ((autocvar__hud_configure && spectatee_status <= 0)
+			|| intermission > 1
+			|| HUD_Radar_Clickable()
+			|| HUD_MinigameMenu_IsOpened()
+			|| QuickMenu_IsOpened()
+		)
+	)
+		lock_type = 1;
 
 	// lock_type 1: lock origin and angles
 	// lock_type 2: lock only origin
@@ -1604,6 +1632,21 @@ void CSQC_UpdateView(entity this, float w, float h)
 	vid_height = vf_size.y;
 
 	ticrate = STAT(MOVEVARS_TICRATE) * STAT(MOVEVARS_TIMESCALE);
+
+	if (autocvar_chase_active)
+	{
+		// in first person view if r_drawviewmodel is off weapon isn't visible
+		// and server doesn't throw any casing
+		// switching to 3rd person view r_drawviewmodel is set to -1 to let know the server casings
+		// can be thrown for self since own weapon model is visible
+		if (autocvar_r_drawviewmodel == 0 && STAT(HEALTH) > 0)
+			cvar_set("r_drawviewmodel", "-1");
+	}
+	else
+	{
+		if (autocvar_r_drawviewmodel < 0)
+			cvar_set("r_drawviewmodel", "0");
+	}
 
 	WaypointSprite_Load();
 

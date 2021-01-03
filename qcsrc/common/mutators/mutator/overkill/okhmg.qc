@@ -36,7 +36,7 @@ void W_OverkillHeavyMachineGun_Attack_Auto(Weapon thiswep, entity actor, .entity
 	}
 
 	float okhmg_spread = bound(WEP_CVAR_PRI(okhmg, spread_min), WEP_CVAR_PRI(okhmg, spread_min) + (WEP_CVAR_PRI(okhmg, spread_add) * actor.(weaponentity).misc_bulletcounter), WEP_CVAR_PRI(okhmg, spread_max));
-	fireBullet(actor, weaponentity, w_shotorg, w_shotdir, okhmg_spread, WEP_CVAR_PRI(okhmg, solidpenetration), WEP_CVAR_PRI(okhmg, damage), WEP_CVAR_PRI(okhmg, force), WEP_OVERKILL_HMG.m_id, EFFECT_RIFLE);
+	fireBullet(actor, weaponentity, w_shotorg, w_shotdir, okhmg_spread, WEP_CVAR_PRI(okhmg, solidpenetration), WEP_CVAR_PRI(okhmg, damage), 0, WEP_CVAR_PRI(okhmg, force), WEP_OVERKILL_HMG.m_id, EFFECT_RIFLE);
 
 	actor.(weaponentity).misc_bulletcounter = actor.(weaponentity).misc_bulletcounter + 1;
 
@@ -73,7 +73,7 @@ METHOD(OverkillHeavyMachineGun, wr_think, void(entity thiswep, entity actor, .en
 			FOREACH_CLIENT(true, LAMBDA(
 				if (it == actor || (IS_SPEC(it) && it.enemy == actor))
 				{
-					wframe_send(it, actor.(weaponentity), WFRAME_FIRE2, g_weaponratefactor, true);
+					wframe_send(it, actor.(weaponentity), WFRAME_FIRE2, autocvar_g_weaponratefactor, true);
 				}
 			));
 			animdecide_setaction(actor, ANIMACTION_SHOOT, true);
