@@ -770,57 +770,6 @@ int cvar_settemp_restore()
 	return j;
 }
 
-bool isCaretEscaped(string theText, float pos)
-{
-	int i = 0;
-	while(pos - i >= 1 && substring(theText, pos - i - 1, 1) == "^")
-		++i;
-	return (i & 1);
-}
-
-int skipIncompleteTag(string theText, float pos, int len)
-{
-	int tag_start = -1;
-
-	if(substring(theText, pos - 1, 1) == "^")
-	{
-		if(isCaretEscaped(theText, pos - 1) || pos >= len)
-			return 0;
-
-		int ch = str2chr(theText, pos);
-		if(ch >= '0' && ch <= '9')
-			return 1; // ^[0-9] color code found
-		else if (ch == 'x')
-			tag_start = pos - 1; // ^x tag found
-		else
-			return 0;
-	}
-	else
-	{
-		for(int i = 2; pos - i >= 0 && i <= 4; ++i)
-		{
-			if(substring(theText, pos - i, 2) == "^x")
-			{
-				tag_start = pos - i; // ^x tag found
-				break;
-			}
-		}
-	}
-
-	if(tag_start >= 0)
-	{
-		if(tag_start + 5 < len)
-		if(IS_HEXDIGIT(substring(theText, tag_start + 2, 1)))
-		if(IS_HEXDIGIT(substring(theText, tag_start + 3, 1)))
-		if(IS_HEXDIGIT(substring(theText, tag_start + 4, 1)))
-		{
-			if(!isCaretEscaped(theText, tag_start))
-				return 5 - (pos - tag_start); // ^xRGB color code found
-		}
-	}
-	return 0;
-}
-
 float textLengthUpToWidth(string theText, float maxWidth, vector theSize, textLengthUpToWidth_widthFunction_t w)
 {
 	// STOP.
@@ -842,7 +791,11 @@ float textLengthUpToWidth(string theText, float maxWidth, vector theSize, textLe
 	{
 		middle = floor((left + right) / 2);
 		if(colors)
-			ofs = skipIncompleteTag(theText, middle, len);
+		{
+			vector res = checkColorCode(theText, len, middle, false);
+			ofs = (res.x) ? res.x - res.y : 0;
+		}
+
 		if(w(substring(theText, 0, middle + ofs), theSize) <= maxWidth)
 			left = middle + ofs;
 		else
@@ -874,7 +827,11 @@ float textLengthUpToLength(string theText, float maxWidth, textLengthUpToLength_
 	{
 		middle = floor((left + right) / 2);
 		if(colors)
-			ofs = skipIncompleteTag(theText, middle, len);
+		{
+			vector res = checkColorCode(theText, len, middle, true);
+			ofs = (!res.x) ? 0 : res.x - res.y;
+		}
+
 		if(w(substring(theText, 0, middle + ofs)) <= maxWidth)
 			left = middle + ofs;
 		else
@@ -1282,7 +1239,7 @@ ERASEABLE
 void write_String_To_File(int fh, string str, bool alsoprint)
 {
 	fputs(fh, str);
-	if (alsoprint) LOG_INFO(str);
+	if (alsoprint) LOG_HELP(str);
 }
 
 string get_model_datafilename(string m, float sk, string fil)
@@ -1821,6 +1778,7 @@ Notification Announcer_PickNumber(int type, int num)
 			}
 			break;
 		}
+		case CNT_NORMAL:
 		default:
 		{
 			switch(num)
@@ -1964,27 +1922,40 @@ void SetMovetypeFollow(entity ent, entity e)
 	ent.v_angle = ent.angles - e.angles; // relative angles
 	ent.aiment_classname = strzone(e.classname);
 	ent.aiment_deadflag = e.deadflag;
+
+	if(IS_PLAYER(ent.aiment))
+	{
+		entity pl = ent.aiment;
+		ent.view_ofs.x = bound(pl.mins.x + 4, ent.view_ofs.x, pl.maxs.x - 4);
+		ent.view_ofs.y = bound(pl.mins.y + 4, ent.view_ofs.y, pl.maxs.y - 4);
+		ent.view_ofs.z = bound(pl.mins.z + 4, ent.view_ofs.z, pl.maxs.z - 4);
+	}
 }
+
 void UnsetMovetypeFollow(entity ent)
 {
 	set_movetype(ent, MOVETYPE_FLY);
 	PROJECTILE_MAKETRIGGER(ent);
-	ent.aiment = NULL;
+	if (ent.aiment_classname)
+		strunzone(ent.classname);
+	// FIXME: engine bug?
+	// resetting aiment the engine will set orb's origin close to world's origin
+	//ent.aiment = NULL;
 }
-float LostMovetypeFollow(entity ent)
+
+int LostMovetypeFollow(entity ent)
 {
 /*
 	if(ent.move_movetype != MOVETYPE_FOLLOW)
 		if(ent.aiment)
 			error("???");
 */
-	if(ent.aiment)
-	{
-		if(ent.aiment.classname != ent.aiment_classname)
-			return 1;
-		if(ent.aiment.deadflag != ent.aiment_deadflag)
-			return 1;
-	}
+	// FIXME: engine bug?
+	// when aiment disconnects the engine will set orb's origin close to world's origin
+	if(!ent.aiment)
+		return 2;
+	if(ent.aiment.classname != ent.aiment_classname || ent.aiment.deadflag != ent.aiment_deadflag)
+		return 1;
 	return 0;
 }
 #endif

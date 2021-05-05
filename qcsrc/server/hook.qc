@@ -166,7 +166,9 @@ void GrapplingHookThink(entity this)
         this.hook_start_time_hack = -1;
     }
 
-	if(LostMovetypeFollow(this) || game_stopped || (round_handler_IsActive() && !round_handler_IsRoundStarted()) || ((this.aiment.flags & FL_PROJECTILE) && this.aiment.classname != "nade"))
+	if((this.move_movetype == MOVETYPE_FOLLOW && LostMovetypeFollow(this))
+		|| game_stopped || (round_handler_IsActive() && !round_handler_IsRoundStarted())
+		|| ((this.aiment.flags & FL_PROJECTILE) && this.aiment.classname != "nade"))
 	{
 		RemoveHook(this);
 		return;
