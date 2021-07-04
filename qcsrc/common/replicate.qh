@@ -56,6 +56,7 @@
 	.float cvar_cl_autotaunt;
 	.float cvar_cl_voice_directional;
 	.float cvar_cl_voice_directional_taunt_attenuation;
+	AUTOCVAR(sv_handicap, bool, true, "Enable handicap on a server side");
 #endif
 
 #ifdef GAMEQC

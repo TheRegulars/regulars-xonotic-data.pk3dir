@@ -260,7 +260,7 @@ void PlayerDamage(entity this, entity inflictor, entity attacker, float damage, 
 
 	if (damage)
 	{
-		if(!DEATH_ISSPECIAL(deathtype))
+		if(!DEATH_ISSPECIAL(deathtype) && autocvar_sv_handicap)
 		{
 			damage *= Handicap_GetTotalHandicap(this);
 			if (this != attacker && IS_PLAYER(attacker))
