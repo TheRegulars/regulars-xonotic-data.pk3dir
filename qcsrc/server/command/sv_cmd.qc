@@ -162,7 +162,13 @@ void GameCommand_allready(int request)
 	{
 		case CMD_REQUEST_COMMAND:
 		{
-			ReadyRestart();
+			if(warmup_stage)
+			{
+				ReadyRestart(true);
+			}
+			else
+				LOG_INFO("Not in warmup.");
+
 			return;
 		}
 
@@ -1126,12 +1132,9 @@ void GameCommand_nospectators(int request)
 		{
 			blockSpectators = 1;
 			// give every spectator <g_maxplayers_spectator_blocktime> seconds time to become a player
-			FOREACH_CLIENT(IS_REAL_CLIENT(it) && (IS_SPEC(it) || IS_OBSERVER(it)) && !it.caplayer, {
-				if(!it.caplayer)
-				{
-					CS(it).spectatortime = time;
-					Send_Notification(NOTIF_ONE_ONLY, it, MSG_INFO, INFO_SPECTATE_WARNING, autocvar_g_maxplayers_spectator_blocktime);
-				}
+			FOREACH_CLIENT(IS_REAL_CLIENT(it) && (IS_SPEC(it) || IS_OBSERVER(it)) && !INGAME(it), {
+				CS(it).spectatortime = time;
+				Send_Notification(NOTIF_ONE_ONLY, it, MSG_INFO, INFO_SPECTATE_WARNING, autocvar_g_maxplayers_spectator_blocktime);
 			});
 			bprint(strcat("^7All spectators will be automatically kicked when not joining the game after ", ftos(autocvar_g_maxplayers_spectator_blocktime), " seconds!\n"));
 			return;
@@ -1296,7 +1299,7 @@ void shuffleteams()
 		return;
 	}
 
-	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
 		if (Player_HasRealForcedTeam(it)) {
 			// we could theoretically assign forced players to their teams
 			// and shuffle the rest to fill the empty spots but in practise
@@ -1318,7 +1321,7 @@ void shuffleteams()
 	TeamBalance_Destroy(balance);
 
 	int team_index = 0;
-	FOREACH_CLIENT_RANDOM(IS_PLAYER(it) || it.caplayer, {
+	FOREACH_CLIENT_RANDOM(IS_PLAYER(it) || INGAME(it), {
 		int target_team_index = team_index + 1;
 		if (Entity_GetTeamIndex(it) != target_team_index)
 		{
@@ -1369,7 +1372,7 @@ void rebalance()
 		return;
 	}
 
-	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
 		if (Player_HasRealForcedTeam(it)) {
 			// we could theoretically assign forced players to their teams
 			// and shuffle the rest to fill the empty spots but in practise
@@ -1379,7 +1382,7 @@ void rebalance()
 		}
 	});
 	string players_info = "";
-	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
 		// rebalance works bad with negative scores
 		float score = stof(it.clientstatus) + 30;
 		// players with 0 score still usefull for team
@@ -1477,7 +1480,7 @@ void elorebalance()
 		return;
 	}
 
-	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
 		if (Player_HasRealForcedTeam(it)) {
 			// we could theoretically assign forced players to their teams
 			// and shuffle the rest to fill the empty spots but in practise
@@ -1488,7 +1491,7 @@ void elorebalance()
 	});
 	count = 0;
 	average_elo = 0;
-	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
 		// rebalance works bad with negative scores
 		float score = PlayerScore_Get(it, SP_ELO);
 		// players with 0 score still usefull for team
@@ -1504,7 +1507,7 @@ void elorebalance()
 	}
 	average_elo = average_elo / count;
 	string players_info = "";
-	FOREACH_CLIENT(IS_PLAYER(it) || it.caplayer, {
+	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
 		// rebalance works bad with negative scores
 		float score = PlayerScore_Get(it, SP_ELO);
 		// players without elo will have average elo
@@ -1588,6 +1591,27 @@ void GameCommand_elorebalance(int request)
 			}
 	}
 }
+
+void GameCommand_resetmatch(int request)
+{
+	switch (request)
+	{
+		case CMD_REQUEST_COMMAND:
+		{
+			ReadyRestart(false);
+			return;
+		}
+
+		default:
+		case CMD_REQUEST_USAGE:
+		{
+			LOG_HELP("Usage:^3 sv_cmd resetmatch");
+			LOG_HELP("  No arguments required.");
+			return;
+		}
+	}
+}
+
 
 void GameCommand_avgscores(int request)
 {
@@ -2006,7 +2030,7 @@ void GameCommand_(int request)
 
 // Do not hard code aliases for these, instead create them in commands.cfg... also: keep in alphabetical order, please ;)
 SERVER_COMMAND(adminmsg, "Send an admin message to a client directly") { GameCommand_adminmsg(request, arguments); }
-SERVER_COMMAND(allready, "Restart the server and reset the players") { GameCommand_allready(request); }
+SERVER_COMMAND(allready, "Ends warmup and starts the match") { GameCommand_allready(request); }
 SERVER_COMMAND(allspec, "Force all players to spectate") { GameCommand_allspec(request, arguments); }
 SERVER_COMMAND(anticheat, "Create an anticheat report for a client") { GameCommand_anticheat(request, arguments); }
 SERVER_COMMAND(animbench, "Benchmark model animation (LAGS)") { GameCommand_animbench(request, arguments); }
@@ -2030,6 +2054,7 @@ SERVER_COMMAND(printstats, "Dump eventlog player stats and other score informati
 SERVER_COMMAND(radarmap, "Generate a radar image of the map") { GameCommand_radarmap(request, arguments); }
 SERVER_COMMAND(reducematchtime, "Decrease the timelimit value incrementally") { GameCommand_reducematchtime(request); }
 SERVER_COMMAND(ircmsg, "Mario mod like ircmsg command") { GameCommand_ircmsg(request, arguments, command); }
+SERVER_COMMAND(resetmatch, "Soft restart the game without changing teams; goes back to warmup if enabled") { GameCommand_resetmatch(request); }
 SERVER_COMMAND(setbots, "Adjust how many bots are in the match") { GameCommand_setbots(request, arguments); }
 SERVER_COMMAND(shuffleteams, "Randomly move players to different teams") { GameCommand_shuffleteams(request); }
 SERVER_COMMAND(rebalance, "Rebalance teams") { GameCommand_rebalance(request); }

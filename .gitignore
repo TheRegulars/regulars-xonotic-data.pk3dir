@@ -1,6 +1,8 @@
 /*.dat
 /*.lno
 
+cscope*
 .DS_Store
 .idea/
 *.sw[op]
+Thumbs.db
