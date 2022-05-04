@@ -38,3 +38,5 @@ void Handicap_SetForcedHandicap(entity player, float value);
 /// \param[in] player Player to check.
 /// \return Total handicap of the player.
 float Handicap_GetTotalHandicap(entity player);
+
+AUTOCVAR(sv_handicap, bool, true, "Enable handicap on a server side");
