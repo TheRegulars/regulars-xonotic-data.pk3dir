@@ -50,7 +50,8 @@
 #include <server/chat.qh>
 #include <server/cheats.qh>
 #include <server/clientkill.qh>
-#include <server/command/common.qh>
+#include <server/command/banning.qh>
+#include <server/command/cmd.qh>
 #include <server/command/common.qh>
 #include <server/command/vote.qh>
 #include <server/compat/quake3.qh>
@@ -1185,6 +1186,13 @@ void ClientConnect(entity this)
 
 	Handicap_Initialize(this);
 
+	// playban
+	if (PlayerInList(this, autocvar_g_playban_list))
+		TRANSMUTE(Observer, this);
+
+	if (PlayerInList(this, autocvar_g_muteban_list)) // muteban
+		CS(this).muted = true;
+
 	MUTATOR_CALLHOOK(ClientConnect, this);
 
 	if (player_count == 1)
@@ -1206,6 +1214,20 @@ void player_powerups_remove_all(entity this);
 void ClientDisconnect(entity this)
 {
 	assert(IS_CLIENT(this), return);
+
+	/* from "ignore" command */
+	strfree(this.ignore_list);
+	FOREACH_CLIENT(IS_REAL_CLIENT(it) && it.ignore_list,
+	{
+		if(it.crypto_idfp && it.crypto_idfp != "")
+			continue;
+		string mylist = ignore_removefromlist(it, this);
+		if(it.ignore_list)
+			strunzone(it.ignore_list);
+
+		it.ignore_list = strzone(mylist);
+	});
+	/* from "ignore" command */
 
 	PlayerStats_GameReport_FinalizePlayer(this);
 	if (this.vehicle) vehicles_exit(this.vehicle, VHEF_RELEASE);
@@ -2341,8 +2363,10 @@ void ObserverOrSpectatorThink(entity this)
 			if(this.flags & FL_SPAWNING)
 			{
 				this.flags &= ~FL_SPAWNING;
-				if(joinAllowed(this))
+				if(joinAllowed(this) && !PlayerInList(this, autocvar_g_playban_list)) // checking playban list if player can be allowed to join
 					Join(this);
+				else if(PlayerInList(this, autocvar_g_playban_list)) // playban
+					Send_Notification(NOTIF_ONE, this, MSG_CENTER, CENTER_JOIN_PLAYBAN);
 				else if(time < CS(this).jointime + MIN_SPEC_TIME)
 					CS(this).autojoin_checked = -1;
 				return;
