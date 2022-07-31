@@ -326,11 +326,20 @@ void GrapplingHookThink(entity this)
 	}
 }
 
+int autocvar_g_grappling_hook_player_attach = 0;
+
 void GrapplingHookTouch(entity this, entity toucher)
 {
-
+	entity player = this.realowner;
 	if(toucher.move_movetype == MOVETYPE_FOLLOW)
 		return;
+
+	if (toucher.classname == "player" && (autocvar_g_grappling_hook_player_attach >= 2 ||
+			(SAME_TEAM(player, toucher) && autocvar_g_grappling_hook_player_attach == 1)))
+	{
+		RemoveHook(this);
+		return;
+	}
 	PROJECTILE_TOUCH(this, toucher);
 
 	GrapplingHook_Stop(this);
