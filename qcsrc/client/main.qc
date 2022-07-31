@@ -405,6 +405,18 @@ void ValidateNetfps() {
 	}
 }
 
+// FIXME: this is hack to prevent people abusing PL for cheating
+void NullifyNetPacketLoss() {
+	if (spectatee_status == 0 && !isdemo()) {
+		if (cvar("cl_netpacketloss_send") > 0) {
+			cvar_set("cl_netpacketloss_send", "0");
+		}
+		if (cvar("cl_netpacketloss_receive") > 0) {
+			cvar_set("cl_netpacketloss_receive", "0");
+		}
+	}
+}
+
 void Playerchecker_Think(entity this)
 {
 	int i;
@@ -445,6 +457,7 @@ void Playerchecker_Think(entity this)
 		}
 	}
 	ValidateNetfps();
+	NullifyNetPacketLoss();
 	this.nextthink = time + 0.2;
 }
 
