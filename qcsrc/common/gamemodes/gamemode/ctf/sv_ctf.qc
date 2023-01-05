@@ -356,6 +356,7 @@ void ctf_Handle_Drop(entity flag, entity player, int droptype)
 	flag.angles = '0 0 0';
 	SetResourceExplicit(flag, RES_HEALTH, flag.max_health);
 	flag.ctf_droptime = time;
+	flag.ctf_landtime = 0;
 	flag.ctf_dropper = player;
 	flag.ctf_status = FLAG_DROPPED;
 
@@ -473,6 +474,7 @@ void ctf_Handle_Throw(entity player, entity receiver, int droptype)
 	flag.solid = SOLID_TRIGGER;
 	flag.ctf_dropper = player;
 	flag.ctf_droptime = time;
+	flag.ctf_landtime = 0;
 
 	flag.flags = FL_ITEM | FL_NOTARGET; // clear FL_ONGROUND for MOVETYPE_TOSS
 
@@ -949,7 +951,7 @@ void ctf_FlagThink(entity this)
 				for(tmp_entity = ctf_worldflaglist; tmp_entity; tmp_entity = tmp_entity.ctf_worldflagnext)
 					if(tmp_entity.ctf_status == FLAG_DROPPED)
 					if(vdist(this.origin - tmp_entity.origin, <, autocvar_g_ctf_dropped_capture_radius))
-					if(time > tmp_entity.ctf_droptime + autocvar_g_ctf_dropped_capture_delay)
+					if((this.noalign || tmp_entity.ctf_landtime) && time > ((this.noalign) ? tmp_entity.ctf_droptime : tmp_entity.ctf_landtime) + autocvar_g_ctf_dropped_capture_delay)
 						ctf_Handle_Capture(this, tmp_entity, CAPTURE_DROPPED);
 			}
 			return;
@@ -958,6 +960,8 @@ void ctf_FlagThink(entity this)
 		case FLAG_DROPPED:
 		{
 			this.angles = '0 0 0'; // reset flag angles in case warpzones adjust it
+			if(IS_ONGROUND(this) && !this.ctf_landtime)
+				this.ctf_landtime = time; // landtime is reset when thrown, and we don't want to restart the timer if the flag is pushed
 
 			if(autocvar_g_ctf_flag_dropped_floatinwater)
 			{
@@ -1210,6 +1214,7 @@ void ctf_RespawnFlag(entity flag)
 	flag.ctf_dropper = NULL;
 	flag.ctf_pickuptime = 0;
 	flag.ctf_droptime = 0;
+	flag.ctf_landtime = 0;
 	flag.ctf_flagdamaged_byworld = false;
 	navigation_dynamicgoal_unset(flag);
 
@@ -1753,7 +1758,7 @@ void havocbot_role_ctf_carrier(entity this)
 
 		entity goal = this.goalentity;
 		if (havocbot_ctf_is_basewaypoint(goal) && vdist(goal.origin - this.origin, <, 100))
-			this.goalentity_lock_timeout = time + ((this.bot_aimtarg) ? 2 : 3);
+			this.goalentity_lock_timeout = time + ((this.enemy) ? 2 : 3);
 
 		if (goal)
 			this.havocbot_cantfindflag = time + 10;
