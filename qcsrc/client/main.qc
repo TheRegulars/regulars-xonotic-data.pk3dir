@@ -420,6 +420,15 @@ void NullifyNetPacketLoss() {
 	}
 }
 
+// FIXME: this is hack to prevent abuse
+void NullifySoundRadius() {
+	if (spectatee_status == 0 && !isdemo()) {
+		if (cvar("snd_soundradius") > 3600) {
+			cvar_set("snd_soundradius", "3600");
+		}
+	}
+}
+
 void Playerchecker_Think(entity this)
 {
 	int i;
@@ -461,6 +470,7 @@ void Playerchecker_Think(entity this)
 	}
 	ValidateNetfps();
 	NullifyNetPacketLoss();
+	NullifySoundRadius();
 	this.nextthink = time + 0.2;
 }
 
