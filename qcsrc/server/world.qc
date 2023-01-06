@@ -1256,7 +1256,7 @@ void DumpStats(float final)
 			s = strcat(s, "spectator:");
 
 		if(to_console)
-			LOG_HELP(s, playername(it.netname, it.team, false));
+			LOG_HELP(s, ftos(it.playerid), ":", playername(it.netname, it.team, false));
 		if(to_eventlog)
 			GameLogEcho(strcat(s, ftos(it.playerid), ":", playername(it.netname, it.team, false)));
 		if(to_file)
