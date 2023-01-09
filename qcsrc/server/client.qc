@@ -80,6 +80,7 @@
 #include <server/weapons/tracing.qh>
 #include <server/weapons/weaponsystem.qh>
 #include <server/world.qh>
+#include <server/autorebalance.qh>
 
 AUTOCVAR(g_spawnshielddynamic, float, 0, _("scaling factor"));
 
@@ -1147,6 +1148,7 @@ void ClientConnect(entity this)
 		int t = TeamBalance_GetAllowedTeams(balance);
 		TeamBalance_Destroy(balance);
 		stuffcmd(this, sprintf("set _teams_available %d\n", t));
+		Autorebalance_SendClientCvar(this);
 	}
 	else
 	{

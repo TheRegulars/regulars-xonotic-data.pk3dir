@@ -18,6 +18,8 @@ const int IMG_COUNT = 1; // number of InfoMessage Groups
 float img_fade[IMG_COUNT];
 int img_cur_msg[IMG_COUNT];
 float img_time[IMG_COUNT];
+float rebalance_time;
+bool unbalanced_first = true;
 
 int img_select(int group_id)
 {
@@ -202,6 +204,19 @@ void HUD_InfoMessages()
 					if (tm && tm.team != NUM_SPECTATOR && tm.team_size == ts_max)
 						s = strcat(s, sprintf(_(" Press ^3%s%s to adjust"), getcommandkey(_("team selection"), "team_selection_show"), blinkcolor));
 					InfoMessage(s);
+					int rebalance_timeout = cvar("_autorebalance_timeout");
+					if (rebalance_timeout > 0 && unbalanced_first) {
+						unbalanced_first = false;
+						rebalance_time = time + rebalance_timeout + 1;
+					}
+					float until_rebalance = rebalance_time - time;
+					if (until_rebalance >= 0) {
+						s = sprintf(_("Teams would be rebalanced automatically in %.0f"), rebalance_time - time);
+						s = strcat(blinkcolor, s);
+						InfoMessage(s);
+					}
+				} else {
+					unbalanced_first = true;
 				}
 			}
 		}
