@@ -1,0 +1,8 @@
+#pragma once
+
+void Autorebalance_Init();
+
+void Autorebalance_Call(entity autorebalance);
+void Autorebalance_Schedule();
+void Autorebalance_Fix();
+void Autorebalance_SendClientCvar(entity client);

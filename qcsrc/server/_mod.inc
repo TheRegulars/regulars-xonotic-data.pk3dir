@@ -26,6 +26,7 @@
 #include <server/spawnpoints.qc>
 #include <server/steerlib.qc>
 #include <server/teamplay.qc>
+#include <server/autorebalance.qc>
 #include <server/tests.qc>
 #include <server/world.qc>
 
