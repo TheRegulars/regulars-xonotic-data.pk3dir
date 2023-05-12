@@ -82,6 +82,7 @@
 #include <server/autorebalance.qh>
 
 AUTOCVAR(g_spawnshielddynamic, float, 0, _("scaling factor"));
+AUTOCVAR(g_disable_player_collision, float, 0, _("1 to disable player collisions, 2 to disable only same team player collision"));
 
 STATIC_METHOD(Client, Add, void(Client this, int _team))
 {
@@ -564,6 +565,33 @@ void GiveWarmupResources(entity this)
 	STAT(WEAPONS, this) = WARMUP_START_WEAPONS;
 }
 
+void SetPlayerCollision(entity this)
+{
+
+	this.dphitcontentsmask = DPCONTENTS_SOLID;
+
+	if (IS_OBSERVER(this) || IS_SPEC(this)) {
+		if (autocvar_g_playerclip_collisions)
+			this.dphitcontentsmask |= DPCONTENTS_PLAYERCLIP;
+
+		return;
+	}
+
+	if (autocvar_g_disable_player_collision == 1) {
+		this.dpcollisionmask = DPCONTENTS_BODY | (COLIDE_TEAM_1_ID << 13);
+	} else if (autocvar_g_disable_player_collision == 2 && teamplay) {
+		this.dpcollisionmask = Team_CollisionMask(this.team) | DPCONTENTS_BODY;
+		this.dphitcontentsmask |= Team_HitContents(this.team);
+	} else {
+		this.dphitcontentsmask |= DPCONTENTS_BODY;
+	}
+
+	if (autocvar_g_playerclip_collisions)
+		this.dphitcontentsmask |= DPCONTENTS_PLAYERCLIP;
+	if (IS_BOT_CLIENT(this) && autocvar_g_botclip_collisions)
+		this.dphitcontentsmask |= DPCONTENTS_BOTCLIP;
+}
+
 void PutPlayerInServer(entity this)
 {
 	if (this.vehicle) vehicles_exit(this.vehicle, VHEF_RELEASE);
@@ -593,11 +621,7 @@ void PutPlayerInServer(entity this)
 	this.damagedbycontents = true;
 	set_movetype(this, MOVETYPE_WALK);
 	this.solid = SOLID_SLIDEBOX;
-	this.dphitcontentsmask = DPCONTENTS_BODY | DPCONTENTS_SOLID;
-	if (autocvar_g_playerclip_collisions)
-		this.dphitcontentsmask |= DPCONTENTS_PLAYERCLIP;
-	if (IS_BOT_CLIENT(this) && autocvar_g_botclip_collisions)
-		this.dphitcontentsmask |= DPCONTENTS_BOTCLIP;
+	SetPlayerCollision(this);
 	this.frags = FRAGS_PLAYER;
 	if (INDEPENDENT_PLAYERS) MAKE_INDEPENDENT_PLAYER(this);
 	this.flags = FL_CLIENT | FL_PICKUPITEMS;
