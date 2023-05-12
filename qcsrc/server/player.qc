@@ -97,6 +97,7 @@ void CopyBody(entity this, float keepvelocity)
 	clone.anim_upper_implicit_action = this.anim_upper_implicit_action;
 	clone.anim_upper_implicit_time = this.anim_upper_implicit_time;
 	clone.dphitcontentsmask = this.dphitcontentsmask;
+	clone.dpcollisionmask = this.dpcollisionmask;
 	clone.death_time = this.death_time;
 	clone.pain_finished = this.pain_finished;
 	SetResourceExplicit(clone, RES_HEALTH, GetResource(this, RES_HEALTH));

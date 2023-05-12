@@ -22,6 +22,12 @@ const int NUM_TEAM_4 = 10; // pink
 #endif
 const int NUM_SPECTATOR = 1337;
 #endif
+#
+
+const int COLIDE_TEAM_1_ID  = 1;
+const int COLIDE_TEAM_2_ID  = 2;
+const int COLIDE_TEAM_3_ID  = 4;
+const int COLIDE_TEAM_4_ID  = 8;
 
 const string COL_TEAM_1 = "^1";
 const string COL_TEAM_2 = "^4";
@@ -84,6 +90,26 @@ vector Team_ColorRGB(int teamid)
 	}
 
 	return '0 0 0';
+}
+
+int Team_CollisionMask(int teamid) {
+	switch(teamid) {
+		case NUM_TEAM_1: return (COLIDE_TEAM_4_ID | COLIDE_TEAM_3_ID | COLIDE_TEAM_2_ID ) << 13;
+		case NUM_TEAM_2: return (COLIDE_TEAM_4_ID | COLIDE_TEAM_3_ID | COLIDE_TEAM_1_ID ) << 13;
+		case NUM_TEAM_3: return (COLIDE_TEAM_4_ID | COLIDE_TEAM_2_ID | COLIDE_TEAM_1_ID ) << 13;
+		case NUM_TEAM_4: return (COLIDE_TEAM_3_ID | COLIDE_TEAM_2_ID | COLIDE_TEAM_1_ID ) << 13;
+	}
+	return (COLIDE_TEAM_4_ID | COLIDE_TEAM_3_ID | COLIDE_TEAM_2_ID | COLIDE_TEAM_1_ID) << 13;
+}
+
+int Team_HitContents(int teamid) {
+	switch(teamid) {
+		case NUM_TEAM_1: return COLIDE_TEAM_1_ID << 13;
+		case NUM_TEAM_2: return COLIDE_TEAM_2_ID << 13;
+		case NUM_TEAM_3: return COLIDE_TEAM_3_ID << 13;
+		case NUM_TEAM_4: return COLIDE_TEAM_4_ID << 13;
+	}
+	return (COLIDE_TEAM_4_ID | COLIDE_TEAM_3_ID | COLIDE_TEAM_2_ID | COLIDE_TEAM_1_ID) << 13;
 }
 
 string Team_ColorName(int teamid)

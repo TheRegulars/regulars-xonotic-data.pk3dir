@@ -1721,6 +1721,28 @@ void GameCommand_autorebalance(int request)
 	}
 }
 
+void GameCommand_fixplayercollisions(int request) {
+	switch (request)
+	{
+		case CMD_REQUEST_COMMAND:
+		{
+			FOREACH_CLIENT(true, {
+				LOG_INFO("Fixing\n");
+				SetPlayerCollision(it);
+			});
+			return;
+		}
+
+		default:
+		case CMD_REQUEST_USAGE:
+		{
+			LOG_HELP("Usage:^3 sv_cmd resetmatch");
+			LOG_HELP("  No arguments required.");
+			return;
+		}
+	}
+}
+
 void GameCommand_resetmatch(int request)
 {
 	switch (request)
@@ -2220,6 +2242,7 @@ SERVER_COMMAND(stufftoall, "Send a command to be executed on all clients") { Gam
 SERVER_COMMAND(trace, "Various debugging tools with tracing") { GameCommand_trace(request, arguments); }
 SERVER_COMMAND(unlockteams, "Enable the ability for players to switch or enter teams") { GameCommand_unlockteams(request); }
 SERVER_COMMAND(warp, "Choose different level in campaign") { GameCommand_warp(request, arguments); }
+SERVER_COMMAND(fixplayercollisions, "Fix player collisions after changing g_disable_player_collision") { GameCommand_fixplayercollisions(request); }
 
 void GameCommand_macro_help()
 {

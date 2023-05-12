@@ -402,6 +402,7 @@ void GiveWarmupResources(entity this);
 void ClientInit_misc(entity this);
 
 int GetPlayerLimit();
+void SetPlayerCollision(entity this);
 
 const int MIN_SPEC_TIME = 1;
 bool joinAllowed(entity this);
