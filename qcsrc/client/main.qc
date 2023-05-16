@@ -400,8 +400,8 @@ bool SetTeam(entity o, int Team)
 // FIXME: this is hack to lock cl_netfps in [40, 300] range
 void ValidateNetfps() {
 	if (spectatee_status == 0 && !isdemo()) {
-		if (cvar("cl_netfps") < 40) {
-			cvar_set("cl_netfps",  "40");
+		if (cvar("cl_netfps") < 60) {
+			cvar_set("cl_netfps",  "60");
 		} else if (cvar("cl_netfps") > 300) {
 			cvar_set("cl_netfps", "300");
 		}
