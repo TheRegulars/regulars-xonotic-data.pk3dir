@@ -241,6 +241,16 @@ void setplayermodel(entity e, string modelname)
 		UpdatePlayerSounds(e);
 }
 
+entity SelectObservePoint(entity this)
+{
+	RandomSelection_Init();
+	IL_EACH(g_observepoints, true,
+	{
+		RandomSelection_AddEnt(it, 1, 1);
+	});
+	return RandomSelection_chosen_ent;
+}
+
 /** putting a client as observer in the server */
 void PutObserverInServer(entity this, bool is_forced, bool use_spawnpoint)
 {
@@ -268,11 +278,16 @@ void PutObserverInServer(entity this, bool is_forced, bool use_spawnpoint)
 
 	if (use_spawnpoint)
 	{
-		entity spot = SelectSpawnPoint(this, true);
+		// first try to find a random "nice" location to view from
+		entity spot = SelectObservePoint(this);
+		bool is_observepoint = (spot != NULL);
+		if(!spot) // otherwise just use the player spawn points
+			spot = SelectSpawnPoint(this, true);
 		if (!spot) LOG_FATAL("No spawnpoints for observers?!?");
+
 		this.angles = vec2(spot.angles);
 		// offset it so that the spectator spawns higher off the ground, looks better this way
-		setorigin(this, spot.origin + STAT(PL_VIEW_OFS, this));
+		setorigin(this, spot.origin + (is_observepoint ? '0 0 0' : autocvar_sv_player_viewoffset));
 	}
 	else // change origin to restore previous view origin
 		setorigin(this, this.origin + STAT(PL_VIEW_OFS, this) - STAT(PL_CROUCH_VIEW_OFS, this));
@@ -1158,9 +1173,6 @@ void ClientConnect(entity this)
 	TRANSMUTE(Client, this);
 	CS(this).version_nagtime = time + 10 + random() * 10;
 
-	entity store = IS_CLIENT(this) ? CS(this) : this;
-	store.cmd_floodtime = -999999;
-
 	Send_Notification(NOTIF_ALL, NULL, MSG_INFO, INFO_JOIN_CONNECT, this.netname);
 
 	bot_clientconnect(this);
@@ -1261,6 +1273,9 @@ void ClientConnect(entity this)
 			setpause(0);
 		localcmd("\nsv_hook_firstjoin\n");
 	}
+
+	if (get_nextmap() != "")
+		Send_NextMap_To_Player(this);
 }
 
 .string shootfromfixedorigin;
@@ -1596,7 +1611,7 @@ void player_powerups(entity this)
 			else
 			{
 				play_countdown(this, StatusEffects_gettime(STATUSEFFECT_Superweapons, this), SND_POWEROFF);
-				if (time > StatusEffects_gettime(STATUSEFFECT_Superweapons, this))
+				if (time >= StatusEffects_gettime(STATUSEFFECT_Superweapons, this))
 				{
 					this.items = this.items - (this.items & IT_SUPERWEAPON);
 					STAT(WEAPONS, this) &= ~WEPSET_SUPERWEAPONS;
@@ -2438,7 +2453,7 @@ bool PlayerThink(entity this)
 		for(int slot = 0; slot < MAX_WEAPONSLOTS; ++slot)
 		{
 			.entity weaponentity = weaponentities[slot];
-			if(WEP_CVAR(vortex, charge_always))
+			if(WEP_CVAR(WEP_VORTEX, charge_always))
 				W_Vortex_Charge(this, weaponentity, frametime);
 			W_WeaponFrame(this, weaponentity);
 		}
@@ -2451,8 +2466,8 @@ bool PlayerThink(entity this)
 		for(int slot = 0; slot < MAX_WEAPONSLOTS; ++slot)
 		{
 			.entity weaponentity = weaponentities[slot];
-			if (WEP_CVAR(vortex, charge_rot_rate) && this.(weaponentity).vortex_charge > WEP_CVAR(vortex, charge_limit) && this.(weaponentity).vortex_charge_rottime < time)
-				this.(weaponentity).vortex_charge = bound(WEP_CVAR(vortex, charge_limit), this.(weaponentity).vortex_charge - WEP_CVAR(vortex, charge_rot_rate) * frametime / W_TICSPERFRAME, 1);
+			if (WEP_CVAR(WEP_VORTEX, charge_rot_rate) && this.(weaponentity).vortex_charge > WEP_CVAR(WEP_VORTEX, charge_limit) && this.(weaponentity).vortex_charge_rottime < time)
+				this.(weaponentity).vortex_charge = bound(WEP_CVAR(WEP_VORTEX, charge_limit), this.(weaponentity).vortex_charge - WEP_CVAR(WEP_VORTEX, charge_rot_rate) * frametime / W_TICSPERFRAME, 1);
 		}
 
 		player_regen(this);
