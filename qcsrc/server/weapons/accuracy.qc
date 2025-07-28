@@ -119,7 +119,7 @@ void accuracy_add(entity this, Weapon w, float fired, float hit)
         // hack to make acc look same
         PlayerScore_Set(this, SP_ACC_VAPORIZER, acc * 100);
     }
-	int sf = 1 << (wepid % 24);
+	int sf = BIT(wepid % 24);
 	a.SendFlags |= sf;
 	FOREACH_CLIENT(IS_SPEC(it) && it.enemy == this, { CS(it).accuracy.SendFlags |= sf; });
 }
