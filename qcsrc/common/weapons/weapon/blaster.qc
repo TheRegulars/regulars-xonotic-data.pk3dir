@@ -13,6 +13,9 @@ void W_Blaster_Touch(entity this, entity toucher)
 
 	this.event_damage = func_null;
 
+	vector force_xyzscale = '1 1 1';
+	force_xyzscale.z = WEP_CVAR_PRI(WEP_BLASTER, force_zscale);
+
 	RadiusDamageForSource(
 		this,
 		(this.origin + (this.mins + this.maxs) * 0.5),
@@ -25,7 +28,7 @@ void W_Blaster_Touch(entity this, entity toucher)
 		NULL,
 		false,
 		WEP_CVAR_PRI(WEP_BLASTER, force),
-		WEP_CVAR_PRI(WEP_BLASTER, force_zscale),
+		force_xyzscale,
 		this.projectiledeathtype,
 		this.weaponentity_fld,
 		toucher
