@@ -14,7 +14,6 @@
 #include <server/race.qh>
 #include <server/scores.qh>
 #include <server/scores_rules.qh>
-#include <server/autorebalance.qh>
 
 /// \brief Describes a state of team balance entity.
 enum
@@ -53,7 +52,6 @@ void Team_InitTeams()
 	{
 		g_team_entities[i] = new_pure(team_entity);
 	}
-	Autorebalance_Init();
 }
 
 entity Team_GetTeamFromIndex(int index)
@@ -298,7 +296,6 @@ bool SetPlayerTeam(entity player, int team_index, int type)
 		}
 	}
 
-	Autorebalance_Schedule();
 	return true;
 }
 

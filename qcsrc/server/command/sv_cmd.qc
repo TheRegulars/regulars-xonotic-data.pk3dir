@@ -1657,60 +1657,6 @@ void GameCommand_elorebalance(int request)
 	}
 }
 
-void autorebalance()
-{
-	bool all_have_elo = true;
-	if ((time - game_starttime) < 120) {
-		// it's only first 2 minutes of the game
-		// all players have not enough information in a score
-		// so elorebalance supposed to be better even if some players have no elo
-		LOG_INFO("Doing elorebalance, since it's beginnig of the game");
-		elorebalance();
-	}
-
-	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
-		float elo = PlayerScore_Get(it, SP_ELO);
-		// players with 0 score still usefull for team
-		if (elo < 10) {
-			all_have_elo = false;
-			break;
-		}
-	});
-	if (all_have_elo) {
-		LOG_INFO("Doing elorebalance, since it's beginnig of the game");
-		elorebalance();
-	} else {
-		LOG_INFO("Doing rebalance");
-		rebalance();
-	}
-}
-
-void GameCommand_autorebalance(int request)
-{
-	switch (request)
-	{
-		case CMD_REQUEST_COMMAND:
-			{
-				if (elorebalance_on_reset_map)
-				{
-					bprint("Players will be rebalanced based on elo when this round is over.\n");
-					elorebalance_on_reset_map = true;
-				}
-				else
-					autorebalance();
-				return;
-			}
-		default:
-		case CMD_REQUEST_USAGE:
-			{
-				LOG_INFO("Usage:^3 sv_cmd autorebalance");
-				LOG_INFO("  No arguments required.");
-				LOG_INFO("See also: ^2shuffleteams, moveplayer^7");
-				return;
-			}
-	}
-}
-
 void GameCommand_fixplayercollisions(int request) {
 	switch (request)
 	{
@@ -2225,7 +2171,6 @@ SERVER_COMMAND(setbots, "Adjust how many bots are in the match") { GameCommand_s
 SERVER_COMMAND(shuffleteams, "Randomly move players to different teams") { GameCommand_shuffleteams(request); }
 SERVER_COMMAND(rebalance, "Rebalance teams") { GameCommand_rebalance(request); }
 SERVER_COMMAND(elorebalance, "Rebalance teams") { GameCommand_elorebalance(request); }
-SERVER_COMMAND(autorebalance, "Rebalance teams") { GameCommand_autorebalance(request); }
 SERVER_COMMAND(avgscores, "Reset all scores to average") { GameCommand_avgscores(request); }
 SERVER_COMMAND(stuffto, "Send a command to be executed on a client") { GameCommand_stuffto(request, arguments); }
 SERVER_COMMAND(stufftoall, "Send a command to be executed on all clients") { GameCommand_stufftoall(request, arguments); }

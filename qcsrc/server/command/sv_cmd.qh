@@ -10,7 +10,6 @@ bool rebalance_on_reset_map;
 void rebalance();
 bool elorebalance_on_reset_map;
 void elorebalance();
-void autorebalance();
 
 void race_deleteTime(string map, float pos);
 
