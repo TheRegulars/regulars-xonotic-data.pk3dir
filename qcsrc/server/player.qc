@@ -246,7 +246,7 @@ void CheckSpawnkill(entity this, entity attacker) {
         return;
     }
 
-    if ((time - this.alivetime) < autocvar_sv_spawnkill_time) {
+    if ((time - this.alivetime_start) < autocvar_sv_spawnkill_time) {
         PlayerScore_Add(this, SP_SPWN_KILLED, 1);
         PlayerScore_Add(attacker, SP_SPWN_KILLS, 1);
         this.spawnkilled_series++;
@@ -473,11 +473,11 @@ void PlayerDamage(entity this, entity inflictor, entity attacker, float damage, 
 	{
 		bool defer_ClientKill_Now_TeamChange = false;
 
-		if(this.alivetime)
+		if(this.alivetime_start)
 		{
-			PlayerStats_GameReport_Event_Player(this, PLAYERSTATS_ALIVETIME, time - this.alivetime);
+			PlayerStats_GameReport_Event_Player(this, PLAYERSTATS_ALIVETIME, max(0, time - this.alivetime_start));
             CheckSpawnkill(this, attacker);
-			this.alivetime = 0;
+			this.alivetime_start = 0;
 		}
 
 		if(valid_damage_for_weaponstats)
