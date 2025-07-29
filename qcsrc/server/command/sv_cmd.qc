@@ -1590,7 +1590,7 @@ void elorebalance()
 	average_elo = 0;
 	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
 		// rebalance works bad with negative scores
-		float score = PlayerScore_Get(it, SP_ELO);
+		float score = PlayerScore_Get(it, SP_SKILL);
 		// players with 0 score still usefull for team
 		if (score < 0) {
 			score = 0;
@@ -1606,7 +1606,7 @@ void elorebalance()
 	string players_info = "";
 	FOREACH_CLIENT(IS_PLAYER(it) || INGAME(it), {
 		// rebalance works bad with negative scores
-		float score = PlayerScore_Get(it, SP_ELO);
+		float score = PlayerScore_Get(it, SP_SKILL);
 		// players without elo will have average elo
 		if (score <= 0) {
 			score = average_elo;

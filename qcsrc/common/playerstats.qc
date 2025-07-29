@@ -472,7 +472,7 @@ void PlayerStats_GameReport_Handler(entity fh, entity pass, float status)
 					url_fputs(fh, sprintf("t %s\n", tt));
 				}
 
-				// elo ranking enabled
+				// skill ranking enabled
 				nn = db_get(PS_GR_OUT_DB, sprintf("%s:_ranked", p));
 				if(nn != "") { url_fputs(fh, sprintf("r %s\n", nn)); }
 
@@ -535,13 +535,13 @@ void PlayerStats_GameReport_Handler(entity fh, entity pass, float status)
 
 void PlayerStats_PlayerBasic(entity joiningplayer, float newrequest)
 {
-	GameRules_scoring_add(joiningplayer, ELO, -1);
+	GameRules_scoring_add(joiningplayer, SKILL, -1);
 	// http://stats.xonotic.org/skill?hashkey=Cm5mzXa1Vn9VX0%2FySV4Pp8ca9CTZvklERDqrrNOUFZU%3D
 	if(autocvar_g_playerstats_playerbasic_uri != "")
 	{
 		string uri = autocvar_g_playerstats_playerbasic_uri;
 		if (joiningplayer.crypto_idfp == "") {
-			GameRules_scoring_add(joiningplayer, ELO, -1);
+			GameRules_scoring_add(joiningplayer, SKILL, -1);
 		} else {
 			// create the database if it doesn't already exist
 			if(PS_B_IN_DB < 0)
@@ -574,7 +574,7 @@ void PlayerStats_PlayerBasic(entity joiningplayer, float newrequest)
 	else
 	{
 		// server has this disabled, kill the DB and set status to idle
-		GameRules_scoring_add(joiningplayer, ELO, -1);
+		GameRules_scoring_add(joiningplayer, SKILL, -1);
 		if(PS_B_IN_DB >= 0)
 		{
 			db_close(PS_B_IN_DB);
@@ -648,12 +648,18 @@ void PlayerStats_PlayerBasic_Handler(entity fh, entity p, float status)
 			int buf = json_parse(temp, _json_parse_array);
 			EXPECT_NE(-1, buf);
 			string gametype = PlayerStats_GetGametype();
-			if (json_get(buf, "0.game_type_cd") == gametype && gametype != "") {
+			if (json_get(buf, "0.game_type_cd") == gametype && gametype != "")
+			{
 				float mu = stof(json_get(buf, "0.mu"));
-				float sigma = stof(json_get(buf, "0.sigma"));
-				float elo = mu - 3 * sigma;
-				GameRules_scoring_add(p, ELO, ((elo < 0) ? 0 : elo) + 1);
+				//float sigma = stof(json_get(buf, "0.sigma"));
+				float skill = max(0, mu);
+				/* we display just the mean skill, since this most accurately represents how players will play on an average match.
+				 * displaying mu - 3 * sigma would display worst-case performance, but when applied to every player this becomes meaningless.
+				 * also we're not interested in the skill that we're confident players can operate above, rather where we expect them to operate.
+				 */
+				GameRules_scoring_add(p, SKILL, skill + 1);
 				return;
+
 			}
 			break;
 		}
@@ -671,7 +677,7 @@ void PlayerStats_PlayerBasic_Handler(entity fh, entity p, float status)
 			break;
 		}
 	}
-	GameRules_scoring_add(p, ELO, -1);
+	GameRules_scoring_add(p, SKILL, -1);
 }
 #endif // SVQC
 
