@@ -450,6 +450,26 @@ void NullifySoundRadius() {
 	}
 }
 
+void FixCurlSettings() {
+	// after checking CDN logs I found that
+	// there are a bunch of players that spend over 10 minutes
+	// on downloading a single map, most likely this is because of
+	// "bad" curl settings.
+	if (isdemo())
+		return;
+
+	int curl_speed = cvar("cl_curl_maxspeed");
+
+	if ((curl_speed > 0 && curl_speed < 3700) || (curl_speed < 0)) {
+		// we detected a "bad" setting, disable speed limit
+		cvar_set("cl_curl_maxspeed", "0");
+	}
+
+	if (cvar("cl_curl_maxdownloads") < 3) {
+		cvar_set("cl_curl_maxdownloads", "5");
+	}
+}
+
 void Playerchecker_Think(entity this)
 {
 	int i;
@@ -505,6 +525,8 @@ void PostInit()
 
 	// this can't be called in CSQC_Init as it'd send cvars too early
 	ReplicateVars_Start();
+	// fix curl settings on start
+	FixCurlSettings();
 
 	postinit = true;
 }
