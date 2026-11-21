@@ -29,6 +29,10 @@ noref float autocvar_net_connecttimeout = 30;
 #endif
 
 #ifdef GAMEQC
+#include "mapvoting/_mod.inc"
+#endif
+
+#ifdef GAMEQC
 #include "minigames/minigames.qc"
 #endif
 
@@ -50,6 +54,6 @@ noref float autocvar_net_connecttimeout = 30;
         #include "vehicles/_mod.inc"
 
 #include "mutators/_mod.inc"
-    #include "gamemodes/_mod.inc"
+    #include "gametypes/_mod.inc"
 
 #include "resources/_mod.inc"

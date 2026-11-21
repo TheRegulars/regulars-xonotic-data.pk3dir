@@ -2,7 +2,7 @@
 
 #include <common/command/_mod.qh>
 #include <common/constants.qh>
-#include <common/gamemodes/_mod.qh>
+#include <common/gametypes/_mod.qh>
 #include <common/items/inventory.qh>
 #include <common/mapinfo.qh>
 #include <common/net_linked.qh>
@@ -496,6 +496,16 @@ void ReadyRestart_force(bool is_fake_round_start)
 		restart_timer.nextthink = game_starttime;
 	}
 
+	// If we're returning to warmup join/switch all queued players for consistency:
+	// there's no queueing in warmup and imbalances are handled by sv_teamnagger blocking end of warmup.
+	if (warmup_stage)
+	{
+		// First pass: join player(s) queued for specific team(s)
+		FOREACH_CLIENT(it.wants_join > 0, Join(it, false));
+		// Second pass: join player(s) queued for team autoselection
+		FOREACH_CLIENT(it.wants_join < 0, Join(it, false));
+	}
+
 	// after a restart every players number of allowed timeouts gets reset, too
 	if (autocvar_sv_timeout)
 	{
@@ -507,7 +517,7 @@ void ReadyRestart_force(bool is_fake_round_start)
 		FOREACH_CLIENT(IS_SPEC(it),
 		{
 			if (it.vote_master)
-				ClientData_Touch(it.enemy);
+				ClientData_Touch(it.enemy, true);
 			else
 			{
 				Send_Notification(NOTIF_ONE_ONLY, it, MSG_MULTI, SPECTATE_SPEC_NOTALLOWED);
@@ -690,7 +700,7 @@ string ValidateMap(string validated_map, entity caller)
 
 	if (!MapInfo_CheckMap(validated_map))
 	{
-		print_to(caller, strcat("^1Invalid mapname, \"^3", validated_map, "^1\" does not support the current game mode."));
+		print_to(caller, strcat("^1Invalid mapname, \"^3", validated_map, "^1\" does not support the current gametype."));
 		return string_null;
 	}
 

@@ -1,16 +1,12 @@
 #include "mathlib.qh"
-#if defined(CSQC)
-#elif defined(MENUQC)
-#elif defined(SVQC)
-#endif
 
 int fpclassify(float e)
 {
-	if(isnan(e))
+	if (isnan(e))
 		return FP_NAN;
-	if(isinf(e))
+	if (isinf(e))
 		return FP_INFINITE;
-	if(e == 0)
+	if (e == 0)
 		return FP_ZERO;
 	return FP_NORMAL;
 }
@@ -25,16 +21,17 @@ bool isinf(float e)
 bool isnan(float e)
 {
 	// The sane way to detect NaN is this:
-	// float f = e;
-	// return (e != f);
+	float f = e;
+	return (e != f);
 	// but darkplaces used to be compiled with -ffinite-math-only which broke it.
 	// DP is fixed now but until all clients update (so after 0.8.3) we have to use the following workaround
 	// or they'd have issues when connecting to newer servers.
+	// bones_was_here: fixed in 0.8.5 and later.
 
 	// Negative NaN ("-nan") is much more common but plain "nan" can be created by negating *some* -nans so we need to check both.
 	// DP's QCVM and GMQCC's QCVM behave differently - one needs ftos(-(0.0 / 0.0)), the other ftos(-sqrt(-1)).
-	string s = ftos(e);
-	return s == "nan" || s == "-nan";
+//	string s = ftos(e);
+//	return s == "nan" || s == "-nan";
 }
 bool isnormal(float e)
 {
@@ -141,8 +138,7 @@ float hypot(float e, float f)
 float erf(float e)
 {
 	// approximation taken from wikipedia
-	float f;
-	f = e*e;
+	float f = e*e;
 	return copysign(sqrt(1 - exp(-f * (1.273239544735163 + 0.14001228868667 * f) / (1 + 0.14001228868667 * f))), e);
 }
 float erfc(float e)
@@ -152,28 +148,27 @@ float erfc(float e)
 vector lgamma(float e)
 {
 	// TODO improve accuracy
-	if(!isfinite(e))
+	if (!isfinite(e))
 		return fabs(e) * '1 0 0' + copysign(1, e) * '0 1 0';
-	if(e < 1 && e == floor(e))
+	if (e < 1 && e == floor(e))
 		return nan("gamma") * '1 1 1';
-	if(e < 0.1)
+	if (e < 0.1)
 	{
-		vector v;
-		v = lgamma(1.0 - e);
+		vector v = lgamma(1.0 - e);
 		// reflection formula:
 		// gamma(1-z) * gamma(z) = pi / sin(pi*z)
 		// lgamma(1-z) + lgamma(z) = log(pi) - log(sin(pi*z))
 		// sign of gamma(1-z) = sign of gamma(z) * sign of sin(pi*z)
 		v.z = sin(M_PI * e);
 		v.x = log(M_PI) - log(fabs(v.z)) - v.x;
-		if(v.z < 0)
+		if (v.z < 0)
 			v.y = -v.y;
 		v.z = 0;
 		return v;
 	}
-	if(e < 1.1)
+	if (e < 1.1)
 		return lgamma(e + 1) - log(e) * '1 0 0';
-	e -= 1;
+	--e;
 	return (0.5 * log(2 * M_PI * e) + e * (log(e) - 1)) * '1 0 0' + '0 1 0';
 }
 float tgamma(float e)
@@ -234,9 +229,9 @@ float nan(string tag)
 float nextafter(float e, float f)
 {
 	// TODO very crude
-	if(e == f)
+	if (e == f)
 		return nan("nextafter");
-	if(e > f)
+	if (e > f)
 		return -nextafter(-e, -f);
 	// now we know that e < f
 	// so we need the next number > e
@@ -249,7 +244,7 @@ float nextafter(float e, float f)
 		b = a;
 		a = e + d;
 	}
-	while(a != e);
+	while (a != e);
 	return b;
 }
 float nexttoward(float e, float f)

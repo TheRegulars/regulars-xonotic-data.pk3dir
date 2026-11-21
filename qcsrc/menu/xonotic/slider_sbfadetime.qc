@@ -2,8 +2,7 @@
 
 entity makeXonoticScoreboardFadeTimeSlider()
 {
-	entity me;
-	me = NEW(XonoticScoreboardFadeTimeSlider);
+	entity me = NEW(XonoticScoreboardFadeTimeSlider);
 	me.configureXonoticScoreboardFadeTimeSlider(me);
 	return me;
 }
@@ -18,10 +17,10 @@ void XonoticScoreboardFadeTimeSlider_configureXonoticScoreboardFadeTimeSlider(en
 }
 void XonoticScoreboardFadeTimeSlider_loadCvars(entity me)
 {
-	me.setValueFromIdentifier_noAnim(me, sprintf("%s %s",
+	me.setValueFromIdentifier(me, sprintf("%s %s",
 		cvar_string("hud_panel_scoreboard_fadeinspeed"),
 		cvar_string("hud_panel_scoreboard_fadeoutspeed")
-	));
+	), false);
 }
 void XonoticScoreboardFadeTimeSlider_saveCvars(entity me)
 {

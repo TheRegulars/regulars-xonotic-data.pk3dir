@@ -3,8 +3,8 @@
 #include <client/draw.qh>
 #include <client/hud/_mod.qh>
 #include <client/hud/hud_config.qh>
-#include <client/mapvoting.qh>
 #include <common/ent_cs.qh>
+#include <common/mapvoting/_mod.qh>
 #include <common/minigames/minigames.qh>
 
 .vector colormod;
@@ -43,8 +43,10 @@ bool HUD_mouse_over(entity somepanel)
 // ====================================================================
 
 // Draws the minigame game board
-void HUD_MinigameBoard ()
+void HUD_MinigameBoard(bool should_draw)
 {
+	if (!should_draw)
+		return;
 	if (!HUD_MinigameMenu_IsOpened())
 		return;
 
@@ -76,8 +78,10 @@ void HUD_MinigameBoard ()
 // Minigame Status
 // ====================================================================
 // Draws the minigame status panel
-void HUD_MinigameStatus ()
+void HUD_MinigameStatus(bool should_draw)
 {
+	if (!should_draw)
+		return;
 	if (!HUD_MinigameMenu_IsOpened())
 		return;
 
@@ -495,8 +499,10 @@ void HUD_MinigameMenu_DrawColoredEntry(vector pos, string s, vector fontsize)
 }
 
 // Minigame menu panel UI
-void HUD_MinigameMenu ()
+void HUD_MinigameMenu(bool should_draw)
 {
+	if (!should_draw)
+		return;
 	if (mv_active)
 	{
 		if (HUD_MinigameMenu_IsOpened())
@@ -564,8 +570,10 @@ void HUD_MinigameMenu ()
 // Minigame Help Panel
 // ====================================================================
 
-void HUD_MinigameHelp()
+void HUD_MinigameHelp(bool should_draw)
 {
+	if (!should_draw)
+		return;
 	if (!HUD_MinigameMenu_IsOpened())
 		return;
 

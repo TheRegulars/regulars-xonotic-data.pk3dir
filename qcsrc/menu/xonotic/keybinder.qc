@@ -21,6 +21,14 @@ string KeyBinds_Icons[MAX_KEYBINDS]; // Allow all keybinds to have an icon, alth
 // Remove this character before drawing the icon
 
 #define KEYBIND_IS_USERBIND(descr) (substring(descr, 0, 1) == "$")
+// Special keybinds can't be edited or selected
+// If a special keybind description matches the previous one
+// then it's considered as an alternative keybind of the previous one
+#define KEYBIND_IS_SPECIAL(func) (substring(func, 0 ,1) == "*")
+// Overriding keybinds unset other binds when they're set
+// ... for the purposes of the menu, or for other reasons
+// The other binds that need to be unset are concatenated to func with a ";" separator
+#define KEYBIND_IS_OVERRIDER(func) (substring(func, 0 ,1) == ";")
 
 string XonoticKeyBinder_cb_name, XonoticKeyBinder_cb_icon;
 void XonoticKeyBinder_cb(string _name, string _icon)
@@ -43,21 +51,11 @@ void KeyBinds_BuildList()
 		} \
 	MACRO_END
 	#define KEYBIND_DEF(func, desc) KEYBIND_DEF_WITH_ICON(func, desc, "")
+	#define KEYBIND_DEF_SPECIAL_WITH_ICON(func, desc, icon) KEYBIND_DEF_WITH_ICON(strcat("*", func), desc, icon)
+	#define KEYBIND_DEF_OVERRIDER_WITH_ICON(func, desc, icon) KEYBIND_DEF_WITH_ICON(strcat(";", func), desc, icon)
 
 	#define KEYBIND_EMPTY_LINE() KEYBIND_DEF("", "")
 	#define KEYBIND_HEADER(str) KEYBIND_DEF("", str)
-
-	// Special keybinds can't be edited or selected
-	// If a special keybind description matches the previous one
-	// then it's considered as an alternative keybind of the previous one
-	#define KEYBIND_IS_SPECIAL(func) (substring(func, 0 ,1) == "*")
-	#define KEYBIND_SPECIAL_DEF_WITH_ICON(func, desc, icon) KEYBIND_DEF_WITH_ICON(strcat("*", func), desc, icon)
-
-	// Overriding keybinds unset other binds when they're set
-	// ... for the purposes of the menu, or for other reasons
-	// The other binds that need to be unset are concatenated to func with a ";" separator
-	#define KEYBIND_IS_OVERRIDER(func) (substring(func, 0 ,1) == ";")
-	#define KEYBIND_OVERRIDER_DEF_WITH_ICON(func, desc, icon) KEYBIND_DEF_WITH_ICON(strcat(";", func), desc, icon)
 
 
 	KEYBIND_HEADER(_("Moving"));
@@ -67,7 +65,7 @@ void KeyBinds_BuildList()
 	KEYBIND_DEF("+moveright"                            , _("strafe right"));
 	KEYBIND_DEF("+jump"                                 , _("jump / swim"));
 	KEYBIND_DEF("+crouch"                               , _("crouch / sink"));
-	KEYBIND_DEF("+hook"                                 , _("off-hand hook"));
+	KEYBIND_DEF("+hook"                                 , _("offhand hook"));
 	KEYBIND_DEF("+jetpack"                              , _("jetpack"));
 	KEYBIND_EMPTY_LINE();
 
@@ -79,10 +77,10 @@ void KeyBinds_BuildList()
 	KEYBIND_HEADER(_("Weapons"));
 	KEYBIND_DEF("weapprev"                              , CTX(_("WEAPON^previous")));
 	KEYBIND_DEF("weapnext"                              , CTX(_("WEAPON^next")));
-	KEYBIND_DEF("weaplast"                              , CTX(_("WEAPON^previously used")));
-	KEYBIND_DEF("weapbest"                              , CTX(_("WEAPON^best")));
-	KEYBIND_DEF("reload"                                , _("reload"));
-	KEYBIND_DEF("dropweapon"                            , _("drop weapon / throw nade"));
+	KEYBIND_DEF("weapon_last"                           , CTX(_("WEAPON^previously used")));
+	KEYBIND_DEF("weapon_best"                           , CTX(_("WEAPON^best")));
+	KEYBIND_DEF("weapon_reload"                         , _("reload"));
+	KEYBIND_DEF("wepaon_drop"                           , _("drop weapon / throw nade"));
 
 	#define SHOWABLE_WEAPON(w) \
 		(!(it.spawnflags & WEP_FLAG_SPECIALATTACK) && \
@@ -136,7 +134,7 @@ void KeyBinds_BuildList()
 	KEYBIND_DEF("+zoom"                                 , _("hold zoom"));
 	KEYBIND_DEF("togglezoom"                            , _("toggle zoom"));
 	KEYBIND_DEF("+showscores"                           , _("show scores"));
-	KEYBIND_DEF("screenshot"                            , _("screen shot"));
+	KEYBIND_DEF("screenshot"                            , _("screenshot"));
 	KEYBIND_DEF("+hud_panel_radar_maximized"            , _("maximize radar"));
 	KEYBIND_DEF("toggle chase_active"                   , _("3rd person view"));
 	KEYBIND_DEF("spec"                                  , _("enter spectator mode"));
@@ -157,7 +155,7 @@ void KeyBinds_BuildList()
 	// non-English keyboard layouts, unlike default keys (` and ~)
 	KEYBIND_DEF("toggleconsole"                         , _("enter console"));
 		string console_shortcut = strcat(translate_key("SHIFT"), "+", translate_key("ESCAPE"));
-		KEYBIND_SPECIAL_DEF_WITH_ICON(console_shortcut  , _("enter console"), "");
+		KEYBIND_DEF_SPECIAL_WITH_ICON(console_shortcut  , _("enter console"), "");
 	KEYBIND_DEF("menu_showquitdialog"                   , _("quit"));
 	KEYBIND_EMPTY_LINE();
 
@@ -172,7 +170,7 @@ void KeyBinds_BuildList()
 	KEYBIND_DEF("kill"                                  , _("suicide / respawn"));
 	KEYBIND_DEF("quickmenu"                             , _("quick menu"));
 	string scoreboard_ui_shortcut = strcat(translate_key("TAB"), "+", translate_key("ESCAPE"));
-	KEYBIND_SPECIAL_DEF_WITH_ICON(scoreboard_ui_shortcut, _("scoreboard user interface"), "");
+	KEYBIND_DEF_SPECIAL_WITH_ICON(scoreboard_ui_shortcut, _("scoreboard user interface"), "");
 	KEYBIND_EMPTY_LINE();
 
 	KEYBIND_HEADER(_("User defined"));
@@ -187,26 +185,35 @@ void KeyBinds_BuildList()
 	KEYBIND_DEF("+button8"                              , _("drag object (sandbox)"));
 	KEYBIND_DEF("wpeditor_menu"                         , _("waypoint editor menu"));
 
+	#undef KEYBIND_DEF_WITH_ICON
 	#undef KEYBIND_DEF
+	#undef KEYBIND_EMPTY_LINE
+	#undef KEYBIND_HEADER
+	#undef KEYBIND_DEF_SPECIAL_WITH_ICON
+	#undef KEYBIND_DEF_OVERRIDER_WITH_ICON
 }
 
 entity makeXonoticKeyBinder()
 {
-	entity me;
-	me = NEW(XonoticKeyBinder);
+	entity me = NEW(XonoticKeyBinder);
 	me.configureXonoticKeyBinder(me);
 	return me;
 }
 void replace_bind(string from, string to)
 {
-	int n, j;
-	float k; // not sure if float or int
+	// NOTE: doesn't replace in every scenario, e.g.:
+	//   bind A "say I dropped my weapon; dropweapon"
+	//   bind A my_custom_dropweapon; alias my_custom_dropweapon dropweapon
+	int n, j, k;
 	n = tokenize(findkeysforcommand(from, 0)); // uses '...' strings
 	for (j = 0; j < n; ++j)
 	{
-		k = stof(argv(j));
+		k = stoi(argv(j));
 		if (k != -1)
+		{
 			localcmd("\nbind \"", keynumtostring(k), "\" \"", to, "\"\n");
+			LOG_INFOF("Rebound %s to \"%s\", replacing legacy \"%s\"\n", keynumtostring(k), to, from);
+		}
 	}
 	if (n)
 		cvar_set("_hud_showbinds_reload", "1");
@@ -215,6 +222,33 @@ void XonoticKeyBinder_configureXonoticKeyBinder(entity me)
 {
 	me.configureXonoticListBox(me);
 	me.nItems = 0;
+
+	// XONRELEASE TODO: xonotic-v0.9 post-release fully remove the old aliases (e.g., dropweapon),
+	// ... and make cl_weaponpriority_useforcycling accept "group"/"priority"/"id" instead of 0/1/2
+	// dropweapon etc. were the original aliases, weapon_drop etc. are the new ones
+	// k9er: these replace_bind calls will help deprecate the old ones
+	replace_bind("_weapnext_0", "weapon_next_bygroup");
+	replace_bind("_weapnext_1", "weapon_next_bypriority");
+	replace_bind("_weapnext_2", "weapon_next_byid");
+	replace_bind("_weapprev_0", "weapon_prev_bygroup");
+	replace_bind("_weapprev_1", "weapon_prev_bypriority");
+	replace_bind("_weapprev_2", "weapon_prev_byid");
+	replace_bind("weaplast", "weapon_last");
+	replace_bind("weapbest", "weapon_best");
+	replace_bind("dropweapon", "weapon_drop");
+	replace_bind("reload", "weapon_reload");
+	replace_bind("g_waypointsprite_personal", "waypoint_personal_here");
+	replace_bind("g_waypointsprite_personal_p", "waypoint_personal_crosshair");
+	replace_bind("g_waypointsprite_personal_d", "waypoint_personal_death");
+	replace_bind("g_waypointsprite_team_helpme", "waypoint_here_follow");
+	replace_bind("g_waypointsprite_team_here", "waypoint_here_here");
+	replace_bind("g_waypointsprite_team_here_p", "waypoint_here_crosshair");
+	replace_bind("g_waypointsprite_team_here_d", "waypoint_here_death");
+	replace_bind("g_waypointsprite_team_danger", "waypoint_danger_here");
+	replace_bind("g_waypointsprite_team_danger_p", "waypoint_danger_crosshair");
+	replace_bind("g_waypointsprite_team_danger_d", "waypoint_danger_death");
+	replace_bind("g_waypointsprite_clear_personal", "waypoint_clear_personal");
+	replace_bind("g_waypointsprite_clear", "waypoint_clear");
 }
 void XonoticKeyBinder_loadKeyBinds(entity me)
 {
@@ -260,7 +294,7 @@ void KeyBinder_Bind_Change(entity btn, entity me)
 		return;
 
 	me.setSelected(me, me.selectedItem); // make it visible if it's hidden
-	me.keyGrabButton.forcePressed = 1;
+	me.keyGrabButton.forcePressed = true;
 	me.clearButton.disabled = 1;
 	keyGrabber = me;
 }
@@ -283,7 +317,7 @@ void XonoticKeyBinder_keyGrabbed(entity me, int key, bool ascii)
 {
 	int n, j, k, nvalid;
 
-	me.keyGrabButton.forcePressed = 0;
+	me.keyGrabButton.forcePressed = false;
 	me.clearButton.disabled = 0;
 
 	if (key == K_ESCAPE)
@@ -422,39 +456,37 @@ void XonoticKeyBinder_doubleClickListBoxItem(entity me, float i, vector where)
 void XonoticKeyBinder_setSelected(entity me, int i)
 {
 	// handling of "unselectable" items
-	i = floor(0.5 + bound(0, i, me.nItems - 1));
-	if (KEYBIND_IS_SPECIAL(KeyBinds_Functions[i]))
+	i = bound(0, i, me.nItems - 1);
+#define KEYBIND_IS_UNSELECTABLE(idx) \
+	(KeyBinds_Functions[idx] == "" || KEYBIND_IS_SPECIAL(KeyBinds_Functions[idx]))
+
+	// skip over unselectables if selected via keyboard, otherwise ignore mouse input
+	if (!me.pressed)
 	{
-		if (i > 0 && KeyBinds_Descriptions[i] == KeyBinds_Descriptions[i - 1])
-			SUPER(XonoticKeyBinder).setSelected(me, i - 1);
-		return;
-	}
-	if (me.pressed == 0 || me.pressed == 1) // keyboard or scrolling - skip unselectable items
-	{
-		if (i > me.previouslySelected)
+		if (i < me.previouslySelected)
 		{
-			while ((i < me.nItems - 1) && (KeyBinds_Functions[i] == ""))
+			while ((i > 0) && KEYBIND_IS_UNSELECTABLE(i))
+				--i;
+		}
+		else
+		{
+			while ((i < me.nItems - 1) && KEYBIND_IS_UNSELECTABLE(i))
 				++i;
 		}
-		while ((i > 0) && (KeyBinds_Functions[i] == ""))
-			--i;
-		while ((i < me.nItems - 1) && (KeyBinds_Functions[i] == ""))
-			++i;
 	}
-	if (me.pressed == 3) // released the mouse - fall back to last valid item
-	{
-		if (KeyBinds_Functions[i] == "")
-			i = me.previouslySelected;
-	}
-	if (KeyBinds_Functions[i] != "")
+	if (KEYBIND_IS_UNSELECTABLE(i))
+		i = me.previouslySelected;
+	else
 		me.previouslySelected = i;
+
 	if (me.userbindEditButton)
 		me.userbindEditButton.disabled = !KEYBIND_IS_USERBIND(KeyBinds_Descriptions[i]);
 	SUPER(XonoticKeyBinder).setSelected(me, i);
+#undef KEYBIND_IS_UNSELECTABLE
 }
 float XonoticKeyBinder_keyDown(entity me, int key, bool ascii, float shift)
 {
-	bool r = true;
+	float r = 1;
 	switch (key)
 	{
 		case K_ENTER:
@@ -531,9 +563,8 @@ void XonoticKeyBinder_drawListBoxItem(entity me, int i, vector absSize, bool isS
 		string tree_type = substring(icon, 0, 1);
 		if (tree_type == "+" || tree_type == "T" || tree_type == "L")
 		{
-			draw_Picture(extraMargin * eX,
-				sprintf("/gfx/menu/%s/%s", cvar_string("menu_skin"), (tree_type == "+" ? "tree_branch" : tree_type == "T" ? "tree_branch_start" : "tree_elbow")),
-				me.columnTreeIconSize * eX + eY, '1 1 1', SKINALPHA_LISTBOX_SELECTED);
+			string pic = (tree_type == "+" ? "tree_branch" : tree_type == "T" ? "tree_branch_start" : "tree_elbow");
+			draw_Picture(extraMargin * eX, pic, me.columnTreeIconSize * eX + eY, '1 1 1', SKINALPHA_LISTBOX_SELECTED);
 			float addedMargin = me.columnTreeIconSize + 0.25 * me.realFontSize.x;
 			extraMargin += addedMargin;
 			descrWidth  -= addedMargin;
@@ -558,7 +589,7 @@ void XonoticKeyBinder_drawListBoxItem(entity me, int i, vector absSize, bool isS
 	if (KEYBIND_IS_OVERRIDER(func))
 	{
 		n = tokenizebyseparator(func, ";");
-		if(n <= 1)
+		if (n <= 1)
 			return;
 		func = argv(1);
 	}
@@ -570,20 +601,20 @@ void XonoticKeyBinder_drawListBoxItem(entity me, int i, vector absSize, bool isS
 	}
 	else
 	{
-		bool joy_active = cvar("joy_active");
+		string key;
+		float k;
+		const bool joy_active = cvar("joy_active");
 		n = tokenize(findkeysforcommand(func, 0)); // uses '...' strings
 		for (int j = 0; j < n; ++j)
 		{
-			float k = stof(argv(j));
-			if (k != -1)
-			{
-				string key = keynumtostring(k);
-				if (!joy_active && startsWith(key, "JOY"))
-					continue;
-				if (s != "")
-					s = strcat(s, ", ");
-				s = strcat(s, translate_key(key));
-			}
+			k = stof(argv(j));
+			if (k == -1)
+				continue;
+			key = keynumtostring(k);
+			if (!joy_active && startsWith(key, "JOY"))
+				continue;
+
+			s = cons_mid(s, ", ", translate_key(key));
 		}
 	}
 	s = draw_TextShortenToWidth(s, me.columnKeysSize, 0, me.realFontSize);
@@ -591,3 +622,5 @@ void XonoticKeyBinder_drawListBoxItem(entity me, int i, vector absSize, bool isS
 }
 
 #undef KEYBIND_IS_USERBIND
+#undef KEYBIND_IS_SPECIAL
+#undef KEYBIND_IS_OVERRIDER

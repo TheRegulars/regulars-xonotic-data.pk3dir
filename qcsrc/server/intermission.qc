@@ -1,12 +1,12 @@
-#include "mapvoting.qh"
+#include "intermission.qh"
 
 #include <common/mapinfo.qh>
+#include <common/mapvoting/_mod.qh>
 #include <common/util.qh>
 #include <server/bot/api.qh>
 #include <server/bot/default/cvars.qh>
 #include <server/campaign.qh>
 #include <server/client.qh>
-#include <server/mapvoting.qh>
 #include <server/scores_rules.qh>
 #include <server/world.qh>
 
@@ -84,17 +84,18 @@ bool MapHasRightSize(string map)
 	if(autocvar_g_maplist_ignore_sizes)
 		return true;
 
-	// open map size restriction file
+	// open map size restriction file (sets map_minplayers and map_maxplayers)
 	if(!MapReadSizes(map))
 		return true; // map has no size restrictions
 
 	string checksize_msg = strcat("MapHasRightSize ", map);
-	int player_limit = ((autocvar_g_maplist_sizes_count_maxplayers) ? GetPlayerLimit() : 0);
-	int pcount = ((player_limit > 0) ? min(player_count, player_limit) : player_count); // bind it to the player limit so that forced spectators don't influence the limits
+	int pcount = player_count;
 
 	if(!autocvar_g_maplist_sizes_count_bots)
 		pcount -= currentbots;
 	pcount -= rint(cvar("g_maplist_sizes_specparty") * pcount);
+	if (autocvar_g_maplist_sizes_count_maxplayers)
+		pcount = min(pcount, GetPlayerLimit()); // bind it to the player limit so that forced spectators don't influence the limits
 
 	// ensure small maps can be selected when pcount is low
 	if(map_minplayers <= (_MapInfo_GetTeamPlayBool(MapInfo_CurrentGametype()) ? 4 : 2))
@@ -195,7 +196,7 @@ int MaplistMethod_Iterate(void) // usual method
 		if(Map_Check(bufstr_get(maplist_buffer, mapindex), 1))
 			return mapindex;
 
-		attempts -= 1;
+		--attempts;
 		if(attempts <= 0)
 		{
 			LOG_DEBUG("MaplistMethod_Iterate: Couldn't find a suitable map, falling back to next valid");
@@ -227,8 +228,7 @@ int MaplistMethod_Random(void) // random map selection
 
 	for(i = 0; i <= imax; ++i)
 	{
-		int mapindex;
-		mapindex = (Map_Current + floor(random() * (Map_Count - 1) + 1)) % Map_Count; // any OTHER map
+		int mapindex = (Map_Current + floor(random() * (Map_Count - 1) + 1)) % Map_Count; // any OTHER map
 		if(Map_Check(bufstr_get(maplist_buffer, mapindex), 1))
 			return mapindex;
 	}
@@ -268,7 +268,7 @@ int Maplist_Init(void)
 			{
 				if(!fexists(Map_Filename(it)))
 				{
-					trimmedmaps += 1;
+					++trimmedmaps;
 					continue;
 				}
 				newmaplist = cons(newmaplist, it);
@@ -282,7 +282,7 @@ int Maplist_Init(void)
 	{
 		bprint( "Maplist contains no usable maps!  Resetting it to default map list.\n" );
 		cvar_set("g_maplist", MapInfo_ListAllowedMaps(MapInfo_CurrentGametype(), MapInfo_RequiredFlags(), MapInfo_ForbiddenFlags()));
-		if(!server_is_dedicated)
+		if(!autocvar_sv_dedicated)
 			localcmd("\nmenu_cmd sync\n");
 	}
 
@@ -373,8 +373,7 @@ float DoNextMapOverride(float reinit)
 	}
 	if(get_nextmap() != "")
 	{
-		string m;
-		m = GameTypeVote_MapInfo_FixName(get_nextmap());
+		string m = GameTypeVote_MapInfo_FixName(get_nextmap());
 		if (m != get_nextmap())
 			Set_NextMap(m);
 
@@ -428,7 +427,7 @@ string GotoMap(string m)
 		return "The map you suggested is not available on this server.";
 	if (!autocvar_sv_vote_gametype)
 	if (!MapInfo_CheckMap(m))
-		return "The map you suggested does not support the current game mode.";
+		return "The map you suggested does not support the current gametype.";
 	if (m != get_nextmap())
 		Set_NextMap(m);
 	if (!intermission_running)

@@ -63,7 +63,7 @@ MUTATOR_HOOKFUNCTION(walljump, PlayerJump)
 			STAT(LASTWJ, player) = time;
 			player.oldvelocity = player.velocity;
 			Send_Effect(EFFECT_SMOKE_RING, trace_endpos, plane_normal, 5);
-			PlayerSound(player, playersound_jump, CH_PLAYER, VOL_BASE, VOICETYPE_PLAYERSOUND);
+			PlayerSound(player, playersound_jump, CH_PLAYER, VOL_BASE, VOICETYPE_PLAYERSOUND, 1);
 			animdecide_setaction(player, ANIMACTION_JUMP, true);
 #endif
 
@@ -72,4 +72,15 @@ MUTATOR_HOOKFUNCTION(walljump, PlayerJump)
 	}
 }
 
+#endif
+#ifdef MENUQC
+METHOD(MutatorWallJump, describe, string(MutatorWallJump this))
+{
+	TC(MutatorWallJump, this);
+	PAGE_TEXT_INIT();
+	PAR(_("%s is a mutator that enables jumping off walls for added mobility. "
+	      "To do a wall jump, tap %s when against a wall."), COLORED_NAME(this), strcat("^3", _("jump"), "^7"));
+	PAR(_("This mutator adds a bit of versatility, allowing for more dynamic and unpredictable movement."));
+	return PAGE_TEXT;
+}
 #endif

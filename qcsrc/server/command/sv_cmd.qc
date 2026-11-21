@@ -2,8 +2,9 @@
 
 #include <common/constants.qh>
 #include <common/effects/all.qh>
-#include <common/gamemodes/_mod.qh>
+#include <common/gametypes/_mod.qh>
 #include <common/mapinfo.qh>
+#include <common/mapvoting/_mod.qh>
 #include <common/monsters/sv_monsters.qh>
 #include <common/net_linked.qh>
 #include <common/notifications/all.qh>
@@ -21,7 +22,6 @@
 #include <server/command/radarmap.qh>
 #include <server/intermission.qh>
 #include <server/ipban.qh>
-#include <server/mapvoting.qh>
 #include <server/mutators/_mod.qh>
 #include <server/player.qh>
 #include <server/scores_rules.qh>
@@ -210,8 +210,11 @@ void GameCommand_allspec(int request, int argc)
 				PutObserverInServer(it, true, true);
 				++n;
 			});
-			if (n)   bprint(strcat("Successfully forced all (", ftos(n), ") players to spectate", (reason ? strcat(" for reason: '", reason, "'") : ""), ".\n"));
-			else   LOG_INFO("No players found to spectate.");
+			if (n)
+				bprint(strcat("Successfully forced all (", ftos(n), ") players to spectate",
+					(reason ? strcat(" for reason: '", reason, "'") : ""), ".\n"));
+			else
+				LOG_INFO("No players found to spectate.");
 			return;
 		}
 
@@ -434,7 +437,7 @@ void GameCommand_bot_cmd(int request, int argc, string command)
 					int bot_num = 0;
 					FOREACH_CLIENT(IS_BOT_CLIENT(it), {
 						bot_queuecommand(it, substring(command, argv_start_index(2), -1));
-						bot_num++;
+						++bot_num;
 					});
 					if(bot_num)
 						LOG_INFO("Command '", substring(command, argv_start_index(2), -1), "' sent to all bots (", ftos(bot_num), ")");
@@ -784,7 +787,7 @@ void GameCommand_gametype(int request, int argc)
 					GameTypeVote_SetGametype(t, "", false);
 				}
 				else
-					bprint("Failed to switch to ", s, ": this game type does not exist!\n");
+					bprint("Failed to switch to ", s, ": this gametype does not exist!\n");
 
 				return;
 			}
@@ -904,7 +907,7 @@ void GameCommand_animbench(int request, int argc)
 					t0 = gettime(GETTIME_HIRES);
 					getsurfacepoint(tmp_entity, 0, 0);
 					t2 += gettime(GETTIME_HIRES) - t0;
-					n += 1;
+					++n;
 				}
 				LOG_INFO("model ", tmp_entity.model, " frame ", ftos(f1), " animtime ", ftos(n / t1), "/s");
 				LOG_INFO("model ", tmp_entity.model, " frame ", ftos(f2), " animtime ", ftos(n / t2), "/s");
@@ -970,10 +973,12 @@ void GameCommand_lockteams(int request)
 			{
 				lockteams = 1;
 				Send_Notification(NOTIF_ALL, NULL, MSG_INFO, INFO_TEAMS_LOCKED);
+				// nobody can join or change teams now so remove everyone from the queue
+				FOREACH_CLIENT(it.wants_join, it.wants_join = it.team_selected = 0);
 			}
 			else
 			{
-				bprint("lockteams command can only be used in a team-based gamemode.\n");
+				bprint("lockteams command can only be used in a team-based gametype.\n");
 			}
 			return;
 		}
@@ -995,9 +1000,7 @@ void GameCommand_make_mapinfo(int request)
 	{
 		case CMD_REQUEST_COMMAND:
 		{
-			entity tmp_entity;
-
-			tmp_entity = new(make_mapinfo);
+			entity tmp_entity = new(make_mapinfo);
 			setthink(tmp_entity, make_mapinfo_Think);
 			tmp_entity.nextthink = time;
 			MapInfo_Enumerate();
@@ -1083,16 +1086,11 @@ void GameCommand_moveplayer(int request, int argc)
 							continue;
 						}
 
-						// set up
-						int save = Player_GetForcedTeamIndex(client);
-						Player_SetForcedTeamIndex(client, TEAM_FORCE_DEFAULT);
-
 						// find the team to move the player to
 						int team_num = Team_ColorToTeam(destination);
 						entity balance;
 						if (team_num == client.team)  // already on the destination team
 						{
-							// keep the forcing undone
 							LOG_INFO("Player #", client_num_str, " (", pl_name, ") is already on the ",
 								Team_ColoredFullName(team_num), ".");
 							continue;
@@ -1106,7 +1104,6 @@ void GameCommand_moveplayer(int request, int argc)
 						{
 							balance = TeamBalance_CheckAllowedTeams(client);
 						}
-						Player_SetForcedTeamIndex(client, save);
 
 						// Check to see if the destination team is even available
 						int team_id = Team_TeamToIndex(team_num);
@@ -1116,7 +1113,7 @@ void GameCommand_moveplayer(int request, int argc)
 							TeamBalance_Destroy(balance);
 							return;
 						}
-						if (!IsTeamAvailable(team_num))
+						if (!(teamplay_bitmask & Team_TeamToBit(team_num)))
 						{
 							LOG_INFO("Can't move player to ", destination, " team because it isn't available.");
 							TeamBalance_Destroy(balance);
@@ -1132,7 +1129,6 @@ void GameCommand_moveplayer(int request, int argc)
 						TeamBalance_Destroy(balance);
 
 						// If so, lets continue and finally move the player
-						Player_SetForcedTeamIndex(client, TEAM_FORCE_DEFAULT);
 						if (MoveToTeam(client, team_id, 6))
 						{
 							successful = strcat(successful, (successful ? ", " : ""), pl_name);
@@ -1403,7 +1399,7 @@ void shuffleteams()
 
 	int number_of_teams = 0;
 	entity balance = TeamBalance_CheckAllowedTeams(NULL);
-	for (int i = 1; i <= NUM_TEAMS; ++i)
+	for (int i = 1; i <= AVAILABLE_TEAMS; ++i)
 	{
 		if (TeamBalance_IsTeamAllowed(balance, i))
 		{
@@ -2081,7 +2077,7 @@ void GameCommand_unlockteams(int request)
 			}
 			else
 			{
-				bprint("unlockteams command can only be used in a team-based gamemode.\n");
+				bprint("unlockteams command can only be used in a team-based gametype.\n");
 			}
 			return;
 		}

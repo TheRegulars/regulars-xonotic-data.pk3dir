@@ -3,14 +3,15 @@
 #include <common/checkextension.qh>
 #include <common/constants.qh>
 #include <common/deathtypes/all.qh>
-#include <common/gamemodes/_mod.qh>
-#include <common/gamemodes/sv_rules.qh>
+#include <common/gametypes/_mod.qh>
+#include <common/gametypes/sv_rules.qh>
 #include <common/items/_mod.qh>
 #include <common/mapinfo.qh>
 #include <common/mapobjects/target/music.qh>
 #include <common/mapobjects/trigger/hurt.qh>
 #include <common/mapobjects/trigger/secret.qh>
 #include <common/mapobjects/triggers.qh>
+#include <common/mapvoting/_mod.qh>
 #include <common/monsters/_mod.qh>
 #include <common/monsters/sv_monsters.qh>
 #include <common/mutators/mutator/powerups/_mod.qh>
@@ -41,7 +42,6 @@
 #include <server/ipban.qh>
 #include <server/items/items.qh>
 #include <server/main.qh>
-#include <server/mapvoting.qh>
 #include <server/mutators/_mod.qh>
 #include <server/race.qh>
 #include <server/scores.qh>
@@ -78,7 +78,7 @@ void PingPLReport_Think(entity this)
 		if(time > (CS(e).latency_time + LATENCY_THINKRATE))
 		{
 			CS(e).latency_sum += CS(e).ping;
-			CS(e).latency_cnt += 1;
+			++CS(e).latency_cnt;
 			CS(e).latency_time = time;
 			//print("sum: ", ftos(CS(e).latency_sum), ", cnt: ", ftos(CS(e).latency_cnt), ", avg: ", ftos(CS(e).latency_sum / CS(e).latency_cnt), ".\n");
 		}
@@ -361,7 +361,6 @@ void cvar_changes_init()
 		BADCVAR("g_balance_kill_delay");
 		BADCVAR("g_buffs_pickup_anyway");
 		BADCVAR("g_buffs_randomize");
-		BADCVAR("g_buffs_randomize_teamplay");
 		BADCVAR("g_campcheck_distance");
 		BADCVAR("g_chatsounds");
 		BADCVAR("g_ca_point_leadlimit");
@@ -384,17 +383,21 @@ void cvar_changes_init()
 		BADCVAR("g_invasion_point_limit");
 		BADCVAR("g_jump_grunt");
 		BADCVAR("g_keepaway_ballcarrier_effects");
+		BADCVAR("g_keepaway_point_limit");
 		BADCVAR("g_keepawayball_effects");
 		BADCVAR("g_keyhunt_point_leadlimit");
 		BADCVAR("g_nexball_goalleadlimit");
 		BADCVAR("g_new_toys_autoreplace");
 		BADCVAR("g_new_toys_use_pickupsound");
+		BADCVAR("g_onslaught_point_limit");
 		BADCVAR("g_physics_predictall");
 		BADCVAR("g_piggyback");
 		BADCVAR("g_playerclip_collisions");
 		BADCVAR("g_spawn_alloweffects");
 		BADCVAR("g_tdm_point_leadlimit");
 		BADCVAR("g_tdm_point_limit");
+		BADCVAR("g_tka_point_leadlimit");
+		BADCVAR("g_tka_point_limit");
 		BADCVAR("g_mayhem_point_limit");
 		BADCVAR("g_mayhem_point_leadlimit");
 		BADCVAR("g_tmayhem_point_limit");
@@ -458,8 +461,8 @@ void cvar_changes_init()
 		BADCVAR("g_balance_teams_queue");
 		BADCVAR("g_balance_teams_remove");
 		BADCVAR("g_balance_teams_remove_wait");
-		BADCVAR("g_balance_teams_prevent_imbalance");
-		BADCVAR("g_balance_teams_scorefactor");
+		BADCVAR("g_balance_teams_skill_significance_threshold");
+		BADCVAR("g_balance_teams_skill_unranked_factor");
 		BADCVAR("g_ban_sync_trusted_servers");
 		BADCVAR("g_ban_sync_uri");
 		BADCVAR("g_buffs");
@@ -497,6 +500,7 @@ void cvar_changes_init()
 		BADCVAR("g_start_delay");
 		BADCVAR("g_superspectate");
 		BADCVAR("g_tdm_teams_override");
+		BADCVAR("g_tka_teams_override");
 		BADCVAR("g_tmayhem_teams_override");
 		BADCVAR("g_tmayhem_powerups");
 		BADCVAR("g_weapon_stay"); BADPRESUFFIX("g_", "_weapon_stay");
@@ -523,6 +527,7 @@ void cvar_changes_init()
 		BADCVAR("sv_motd");
 		BADCVAR("sv_public");
 		BADCVAR("sv_showfps");
+		BADCVAR("sv_showskill");
 		BADCVAR("sv_showspectators");
 		BADCVAR("sv_status_privacy");
 		BADCVAR("sv_taunt");
@@ -666,7 +671,7 @@ void GameplayMode_DelayedInit(entity this)
 	// at this stage team entities are spawned, teamplay contains the number of them
 
 	if(!scores_initialized)
-		ScoreRules_generic();
+		GameRules_scoring(teamplay_bitmask, SFL_SORT_PRIO_PRIMARY, SFL_SORT_PRIO_PRIMARY, {});
 
 	if (warmup_stage >= 0 && autocvar_g_maxplayers >= 0)
 		return;
@@ -690,8 +695,6 @@ void GameplayMode_DelayedInit(entity this)
 	if (warmup_stage < 0)
 	{
 		int m = GetPlayerLimit();
-		if (m <= 0)
-			m = maxclients;
 		map_minplayers = bound(max(2, AVAILABLE_TEAMS * 2), map_minplayers, m);
 		if (teamplay)
 		{
@@ -760,6 +763,22 @@ void InitGameplayMode()
 bool world_already_spawned;
 spawnfunc(worldspawn)
 {
+	// Must be checked first because we don't always error() and don't want to print this twice.
+	if (world_already_spawned)
+	{
+		string msg = "world already spawned - your map may have EXACTLY ONE worldspawn!";
+		if (q3compat) // must be set during (first) worldspawn
+		{
+			// Q3 ignores spurious/extra worldspawn entities, test map: q3dmz_carnage
+			LOG_WARN(msg);
+			delete(this);
+			return;
+		}
+		else
+			error(msg);
+	}
+	world_already_spawned = true;
+
 #ifdef WATERMARK
 	string watermark_start = cvar_string("sv_watermark_start");
 	if (watermark_start == "") // always true on Xonotic (re)start
@@ -776,7 +795,6 @@ spawnfunc(worldspawn)
 	CheckEngineExtensions();
 
 	cvar_set("_endmatch", "0");
-	server_is_dedicated = boolean(stof(cvar_defstring("is_dedicated")));
 
 	if (autocvar_sv_termsofservice_url && autocvar_sv_termsofservice_url != "")
 	{
@@ -789,7 +807,7 @@ spawnfunc(worldspawn)
 
 	bool wantrestart = false;
 	{
-		if (!server_is_dedicated)
+		if (!autocvar_sv_dedicated)
 		{
 			// DP unloads dlcache pk3s before starting a listen server since https://gitlab.com/xonotic/darkplaces/-/merge_requests/134
 			// restore csqc_progname too
@@ -847,15 +865,11 @@ spawnfunc(worldspawn)
 		}
 	}
 
-	if(world_already_spawned)
-		error("world already spawned - you may have EXACTLY ONE worldspawn!");
-	world_already_spawned = true;
-
 	delete_fn = remove_safely; // during spawning, watch what you remove!
 
 	cvar_changes_init(); // do this very early now so it REALLY matches the server config
 
-	// default to RACE_RECORD, can be overwritten by gamemodes
+	// default to RACE_RECORD, can be overwritten by gametypes
 	record_type = RACE_RECORD;
 
 	// needs to be done so early because of the constants they create
@@ -1020,7 +1034,7 @@ spawnfunc(worldspawn)
 		}
 	}
 	if (!records_available)
-		records_reply[0] = "No records available for the current game mode.\n";
+		records_reply[0] = "No records available for the current gametype.\n";
 	ladder_reply = strzone(getladder());
 	rankings_reply = strzone(getrankings());
 
@@ -1082,7 +1096,7 @@ spawnfunc(worldspawn)
 
 	WinningConditionHelper(this); // set worldstatus
 
-	if (autocvar_sv_autopause && server_is_dedicated && !wantrestart)
+	if (autocvar_sv_autopause && autocvar_sv_dedicated && !wantrestart)
 		// INITPRIO_LAST is too soon: bots either didn't join yet or didn't leave yet, see: bot_fixcount()
 		defer(this, 5, Pause_TryPause_Dedicated);
 
@@ -1157,18 +1171,21 @@ bool MoveToRandomLocationWithinBounds(entity e, vector boundmin, vector boundmax
 		if (trace_fraction >= 1 || trace_dphittexturename == "common/caulk")
 			continue;
 
-		// rule 4: we must "see" some spawnpoint or item
+		// rule 4: we must "be seen" by some spawnpoint or item
+		// Note that checkpvs from mstart to item can detect visibility if mstart is behind
+		// patch brushes (curved walls) that don't block visibility from the outside, however
+		// the next traceline from item to mstart correctly detects invisibility in this case
 		entity sp = NULL;
 		if(frompos)
 		{
-			if((traceline(mstart, e.origin, MOVE_NORMAL, e), trace_fraction) >= 1)
+			if((traceline(e.origin, mstart, MOVE_NORMAL, e), trace_fraction) >= 1)
 				sp = e;
 		}
 		if(!sp)
 		{
 			IL_EACH(g_spawnpoints, checkpvs(mstart, it),
 			{
-				if((traceline(mstart, it.origin, MOVE_NORMAL, e), trace_fraction) >= 1)
+				if((traceline(it.origin, mstart, MOVE_NORMAL, e), trace_fraction) >= 1)
 				{
 					sp = it;
 					break;
@@ -1180,7 +1197,7 @@ bool MoveToRandomLocationWithinBounds(entity e, vector boundmin, vector boundmax
 			int items_checked = 0;
 			IL_EACH(g_items, checkpvs(mstart, it),
 			{
-				if((traceline(mstart, it.origin + (it.mins + it.maxs) * 0.5, MOVE_NORMAL, e), trace_fraction) >= 1)
+				if((traceline(it.origin + (it.mins + it.maxs) * 0.5, mstart, MOVE_NORMAL, e), trace_fraction) >= 1)
 				{
 					sp = it;
 					break;
@@ -1195,17 +1212,18 @@ bool MoveToRandomLocationWithinBounds(entity e, vector boundmin, vector boundmax
 				continue;
 		}
 
+		float vlen_delta = vlen(delta);
 		// find a random vector to "look at"
 		end.x = org.x + random() * delta.x;
 		end.y = org.y + random() * delta.y;
 		end.z = org.z + random() * delta.z;
-		end = start + normalize(end - start) * vlen(delta);
+		end = start + normalize(end - start) * vlen_delta;
 
 		// rule 4: start TO end must not be too short
 		tracebox(start, e.mins, e.maxs, end, MOVE_NORMAL, e);
 		if(trace_startsolid)
 			continue;
-		if(trace_fraction < minviewdistance / vlen(delta))
+		if(trace_fraction < minviewdistance / vlen_delta)
 			continue;
 
 		// rule 5: don't want to look at sky
@@ -1359,7 +1377,7 @@ void MatchEnd_RestoreSpectatorAndTeamStatus(.int prev_team_field)
 		{
 			INGAME_STATUS_CLEAR(it);
 			PutObserverInServer(it, true, false);
-			bprint(playername(it.netname, it.team, false), " has been moved back to spectator");
+			bprint(playername(it.netname, it.team, false), " has been moved back to spectator\n");
 			it.winning = false;
 		}
 		else if (fix_team && INGAME_JOINED(it) && it.(prev_team_field) && it.team != it.(prev_team_field))
@@ -1368,7 +1386,7 @@ void MatchEnd_RestoreSpectatorAndTeamStatus(.int prev_team_field)
 			if (MoveToTeam(it, Team_TeamToIndex(it.(prev_team_field)), 6))
 			{
 				string pl_name = playername(it.netname, it.team, false);
-				bprint(pl_name, " has been moved back to the ", Team_ColoredFullName(it.team));
+				bprint(pl_name, " has been moved back to the ", Team_ColoredFullName(it.team), "\n");
 			}
 			it.winning = (it.team == WinningConditionHelper_winnerteam);
 		}
@@ -1547,7 +1565,7 @@ float WinningCondition_Scores(float limit, float leadlimit)
 
 	if(teamplay)
 	{
-		for (int i = 1; i < 5; ++i)
+		for (int i = 1; i <= AVAILABLE_TEAMS; ++i)
 		{
 			Team_SetTeamScore(Team_GetTeamFromIndex(i),
 				TeamScore_GetCompareValue(Team_IndexToTeam(i)));
@@ -1632,7 +1650,7 @@ float WinningCondition_RanOutOfSpawns()
 	if(!some_spawn_has_been_used)
 		return WINNING_NO;
 
-	for (int i = 1; i < 5; ++i)
+	for (int i = 1; i <= AVAILABLE_TEAMS; ++i)
 	{
 		Team_SetTeamScore(Team_GetTeamFromIndex(i), 0);
 	}
@@ -1677,7 +1695,7 @@ float WinningCondition_RanOutOfSpawns()
 		entity balance = TeamBalance_CheckAllowedTeams(NULL);
 		for(i = 0; i < MAX_TEAMSCORE; ++i)
 		{
-			for (int j = 1; j <= NUM_TEAMS; ++j)
+			for (int j = 1; j <= AVAILABLE_TEAMS; ++j)
 			{
 				if (t == j)
 				{

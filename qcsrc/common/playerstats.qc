@@ -23,7 +23,7 @@ REPLICATE(cvar_cl_allow_uidtracking, int, "cl_allow_uidtracking");
 #endif
 
 #ifdef SVQC
-REPLICATE_APPLYCHANGE("cl_allow_uidtracking", { PlayerStats_GameReport_AddPlayer(this); });
+REPLICATE_APPLYCHANGE("cl_allow_uidtracking", PlayerStats_GameReport_AddPlayer(this));
 #endif
 
 #ifdef SVQC
@@ -374,7 +374,7 @@ void PlayerStats_GameReport_Handler(entity fh, entity pass, float status)
 		 * V: format version (always a fixed number) - this MUST be the first line!
 		 * #: comment (MUST be ignored by any parser)
 		 * R: release information on the server
-		 * G: game type
+		 * G: gametype
 		 * O: mod name (icon request) as in server browser
 		 * M: map name
 		 * I: match ID (see "matchid" in world.qc)
@@ -540,12 +540,14 @@ void PlayerStats_PlayerBasic(entity joiningplayer, float newrequest)
 {
 	GameRules_scoring_add(joiningplayer, SKILL, -1);
 	// http://stats.xonotic.org/skill?hashkey=Cm5mzXa1Vn9VX0%2FySV4Pp8ca9CTZvklERDqrrNOUFZU%3D
-	if(autocvar_g_playerstats_playerbasic_uri != "")
+	if (autocvar_g_playerstats_playerbasic_uri != ""
+	&& (autocvar_g_balance_teams_skill || autocvar_sv_showskill))
 	{
 		string uri = autocvar_g_playerstats_playerbasic_uri;
-		if (joiningplayer.crypto_idfp == "") {
+		if (joiningplayer.crypto_idfp == "")
 			GameRules_scoring_add(joiningplayer, SKILL, -1);
-		} else {
+		else
+		{
 			// create the database if it doesn't already exist
 			if(PS_B_IN_DB < 0)
 				PS_B_IN_DB = db_create();
@@ -653,16 +655,14 @@ void PlayerStats_PlayerBasic_Handler(entity fh, entity p, float status)
 			string gametype = PlayerStats_GetGametype();
 			if (json_get(buf, "0.game_type_cd") == gametype && gametype != "")
 			{
-				float mu = stof(json_get(buf, "0.mu"));
-				//float sigma = stof(json_get(buf, "0.sigma"));
-				float skill = max(0, mu);
+				p.m_skill_var = stof(json_get(buf, "0.sigma")) ** 2;
+				p.m_skill_mu = max(0, stof(json_get(buf, "0.mu"))); // can it be < 0 ?!
 				/* we display just the mean skill, since this most accurately represents how players will play on an average match.
 				 * displaying mu - 3 * sigma would display worst-case performance, but when applied to every player this becomes meaningless.
 				 * also we're not interested in the skill that we're confident players can operate above, rather where we expect them to operate.
 				 */
-				GameRules_scoring_add(p, SKILL, skill + 1);
+				GameRules_scoring_add(p, SKILL, p.m_skill_mu + 1);
 				return;
-
 			}
 			break;
 		}
@@ -915,11 +915,9 @@ void PlayerInfo_AddPlayer(entity e)
 	if(playerinfo_db < 0)
 		return;
 
-	string key;
-	key = sprintf("#%d:*", e.playerid); // TODO: use hashkey instead?
+	string key = sprintf("#%d:*", e.playerid); // TODO: use hashkey instead?
 
-	string p;
-	p = db_get(playerinfo_db, key);
+	string p = db_get(playerinfo_db, key);
 	if(p == "")
 	{
 		if(playerinfo_last)
@@ -939,11 +937,9 @@ void PlayerInfo_AddItem(entity e, string item_id, string val)
 	if(playerinfo_db < 0)
 		return;
 
-	string key;
-	key = sprintf("*:%s", item_id);
+	string key = sprintf("*:%s", item_id);
 
-	string p;
-	p = db_get(playerinfo_db, key);
+	string p = db_get(playerinfo_db, key);
 	if(p == "")
 	{
 		if(playerinfo_events_last)
@@ -966,16 +962,15 @@ string PlayerInfo_GetItem(entity e, string item_id)
 	if(playerinfo_db < 0)
 		return "";
 
-	string key;
-	key = sprintf("#%d:%s",  e.playerid, item_id);
+	string key = sprintf("#%d:%s",  e.playerid, item_id);
 	return db_get(playerinfo_db, key);
 }
 
 string PlayerInfo_GetItemLocal(string item_id)
 {
-        entity p = spawn();
-        p.playerid = 0;
-        return PlayerInfo_GetItem(p, item_id);
+	entity p = spawn();
+	p.playerid = 0;
+	return PlayerInfo_GetItem(p, item_id);
 }
 
 void PlayerInfo_ready(entity fh, entity p, float status)
@@ -983,26 +978,26 @@ void PlayerInfo_ready(entity fh, entity p, float status)
 	float n;
 	string s;
 
-        PlayerInfo_AddPlayer(p);
+	PlayerInfo_AddPlayer(p);
 
 	switch(status)
 	{
-                case URL_READY_CANWRITE:
-                        print("-- Sending data to player stats server\n");
+		case URL_READY_CANWRITE:
+			print("-- Sending data to player stats server\n");
 			url_fputs(fh, "V 1\n");
 #ifdef WATERMARK
 			url_fputs(fh, sprintf("R %s\n", WATERMARK));
 #endif
 #ifdef MENUQC
-                        url_fputs(fh, sprintf("l %s\n", cvar_string("_menu_prvm_language"))); // language
-                        url_fputs(fh, sprintf("c %s\n", cvar_string("_menu_prvm_country"))); // country
-                        url_fputs(fh, sprintf("n %s\n", cvar_string("_cl_name"))); // name
-                        url_fputs(fh, sprintf("m %s %s\n", cvar_string("_cl_playermodel"), cvar_string("_cl_playerskin"))); // model/skin
+			url_fputs(fh, sprintf("l %s\n", cvar_string("_menu_prvm_language"))); // language
+			url_fputs(fh, sprintf("c %s\n", cvar_string("_menu_prvm_country"))); // country
+			url_fputs(fh, sprintf("n %s\n", cvar_string("_cl_name"))); // name
+			url_fputs(fh, sprintf("m %s %s\n", cvar_string("_cl_playermodel"), cvar_string("_cl_playerskin"))); // model/skin
 #endif
 			url_fputs(fh, "\n");
 			url_fclose(fh);
-                        break;
-                case URL_READY_CANREAD:
+			break;
+		case URL_READY_CANREAD:
 			print("-- Got response from player stats server:\n");
 			string gametype = string_null;
 			while((s = url_fgets(fh)))
@@ -1013,7 +1008,7 @@ void PlayerInfo_ready(entity fh, entity p, float status)
 
 				n = tokenizebyseparator(s, " "); // key (value) data
 				if (n == 1)
-                                        continue;
+					continue;
 				else if (n == 2)
 				{
 					key = argv(0);
@@ -1021,9 +1016,9 @@ void PlayerInfo_ready(entity fh, entity p, float status)
 				}
 				else if (n >= 3)
 				{
-                                        key = argv(0);
-                                        value = argv(1);
-                                        data = argv(2);
+					key = argv(0);
+					value = argv(1);
+					data = argv(2);
 				}
 
 				if (data == "")
@@ -1079,13 +1074,12 @@ void PlayerInfo_Init()
 #ifdef SVQC
 void PlayerInfo_Basic(entity p)
 {
-        print("-- Getting basic PlayerInfo for player ",ftos(p.playerid)," (SVQC)\n");
+	print("-- Getting basic PlayerInfo for player ",ftos(p.playerid)," (SVQC)\n");
 
 	if(playerinfo_db < 0)
 		return;
 
-        string uri;
-        uri = autocvar_g_playerinfo_uri;
+	string uri = autocvar_g_playerinfo_uri;
 	if(uri != "" && p.crypto_idfp != "")
 	{
 		uri = strcat(uri, "/elo/", uri_escape(p.crypto_idfp));
@@ -1098,17 +1092,16 @@ void PlayerInfo_Basic(entity p)
 #ifdef MENUQC
 void PlayerInfo_Details()
 {
-        print("-- Getting detailed PlayerInfo for local player (MENUQC)\n");
+	print("-- Getting detailed PlayerInfo for local player (MENUQC)\n");
 
 	if(playerinfo_db < 0)
 		return;
 
-        string uri;
-        uri = autocvar_g_playerinfo_uri; // FIXME
+	string uri = autocvar_g_playerinfo_uri; // FIXME
 	if(uri != "" && crypto_getmyidstatus(0) > 0)
 	{
 		//uri = strcat(uri, "/player/", uri_escape(crypto_getmyidfp(0)));
-                uri = strcat(uri, "/player/me");
+		uri = strcat(uri, "/player/me");
 		print("Retrieving playerstats from URL: ", uri, "\n");
 		url_single_fopen(uri, FILE_APPEND, PlayerInfo_ready, NULL);
 	}
@@ -1119,13 +1112,12 @@ void PlayerInfo_Details()
 // FIXME - crypto_* builtin functions missing in CSQC (csprogsdefs.qh:885)
 void PlayerInfo_Details()
 {
-        print("-- Getting detailed PlayerInfo for local player (CSQC)\n");
+	print("-- Getting detailed PlayerInfo for local player (CSQC)\n");
 
 	if(playerinfo_db < 0)
 		return;
 
-        string uri;
-        uri = autocvar_g_playerinfo_uri; // FIXME
+	string uri = autocvar_g_playerinfo_uri; // FIXME
 	if(uri != "" && crypto_getmyidstatus(0) > 0)
 	{
 		uri = strcat(uri, "/player/", uri_escape(crypto_getmyidfp(0)));

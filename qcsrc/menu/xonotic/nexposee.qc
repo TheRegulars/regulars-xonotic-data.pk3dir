@@ -2,14 +2,8 @@
 
 entity makeXonoticNexposee()
 {
-	entity me;
-	me = NEW(XonoticNexposee);
-	me.configureXonoticNexposee(me);
+	entity me = NEW(XonoticNexposee);
 	return me;
-}
-
-void XonoticNexposee_configureXonoticNexposee(entity me)
-{
 }
 
 void XonoticNexposee_close(entity me)

@@ -114,7 +114,7 @@ void XonoticServerInfoDialog_loadServerInfo(entity me, float i)
 	if(s != "data")
 		modname = sprintf("%s (%s)", modname, s);
 
-	Gametype j = MapInfo_Type_FromString(typestr, false, false); // try and get the real name of the game type
+	Gametype j = MapInfo_Type_FromString(typestr, false, false); // try and get the real name of the gametype
 	if(j) { typestr = MapInfo_Type_ToText(j); } // only set it if we actually found it
 
 	me.currentServerType = strzone(typestr);
@@ -224,7 +224,7 @@ void XonoticServerInfoDialog_fill(entity me)
 		//	e.onClick = ServerList_Favorite_Click;
 		//	e.onClickEntity = slist;
 		//	slist.favoriteButton = e;
-		me.TD(me, 1, me.columns/2, e = makeXonoticButton(_("Join!"), '0 0 0'));
+		me.TD(me, 1, me.columns/2, e = makeXonoticButton(_("Join!"), '0 1 0'));
 			e.onClick = Join_Click;
 			e.onClickEntity = me;
 }

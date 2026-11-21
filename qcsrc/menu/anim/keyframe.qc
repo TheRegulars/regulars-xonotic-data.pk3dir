@@ -37,7 +37,7 @@
 	float getNewChildDuration(entity this, float durationTime)
 	{
 		float maxDura = this.duration;
-		if (this.lastChild) maxDura = maxDura - (this.lastChild.startTime + this.lastChild.duration);
+		if (this.lastChild) maxDura -= this.lastChild.startTime + this.lastChild.duration;
 		float dura = durationTime;
 		if (0 >= dura || dura > maxDura) dura = maxDura;
 		return dura;
@@ -52,8 +52,7 @@
 	METHOD(Keyframe, addAnim, void(entity this, entity other))
 	{
 		if (other.parent) error("Can't add already added anim!");
-
-		if (other.isFinished(other)) error("Can't add finished anim!");
+		if (other.finished) error("Can't add finished anim!");
 
 		other.parent = this;
 
@@ -76,8 +75,8 @@
 
 	METHOD(Keyframe, calcValue, float(entity this, float tickTime, float animDuration, float animStartValue, float animDelta))
 	{
-		if (this.currentChild)
-			if (this.currentChild.isFinished(this.currentChild)) this.currentChild = this.currentChild.nextSibling;
+		if (this.currentChild && this.currentChild.finished)
+			this.currentChild = this.currentChild.nextSibling;
 
 		if (this.currentChild)
 		{

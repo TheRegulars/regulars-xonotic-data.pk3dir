@@ -2,8 +2,7 @@
 
 entity makeXonoticPicmipSlider()
 {
-	entity me;
-	me = NEW(XonoticPicmipSlider);
+	entity me = NEW(XonoticPicmipSlider);
 	me.configureXonoticPicmipSlider(me);
 	return me;
 }
@@ -32,7 +31,7 @@ void XonoticPicmipSlider_autofix(entity me)
 	if(max_hard > 0)
 	{
 		while(me.value > 0 && texmemsize(me.have_s3tc) > max_hard)
-			me.setValue(me, me.value - 1);
+			me.setValue(me, me.value - 1, autocvar_menu_animations > 0);
 	}
 	// TODO also check the soft limit!
 	// TODO better handling than clamping the slider!

@@ -3,6 +3,7 @@
 #include "weaponslist.qh"
 #include "commandbutton.qh"
 #include "textlabel.qh"
+#include "slider.qh"
 #include "mixedslider.qh"
 #include "checkbox.qh"
 #include "button.qh"
@@ -14,8 +15,7 @@ void XonoticGameWeaponsSettingsTab_showNotify(entity me)
 }
 entity makeXonoticGameWeaponsSettingsTab()
 {
-	entity me;
-	me = NEW(XonoticGameWeaponsSettingsTab);
+	entity me = NEW(XonoticGameWeaponsSettingsTab);
 	me.configureDialog(me);
 	return me;
 }
@@ -62,8 +62,9 @@ void XonoticGameWeaponsSettingsTab_fill(entity me)
 			_("Automatically switch to newly picked up weapons if they are better than what you are carrying")));
 			e.sendCvars = true;
 	me.TR(me);
-		me.TD(me, 1, 1.2, e = makeXonoticTextLabel(0, _("Auto switch in CTS:")));
-		me.TD(me, 1, 1.8, e = makeXonoticMixedSlider("cl_autoswitch_cts"));
+		me.TD(me, 1, 4/3, e = makeXonoticTextLabel(0, _("Auto switch in CTS:")));
+		me.TD(me, 1, 5/3, e = makeXonoticMixedSlider("cl_autoswitch_cts"));
+			e.setValueSpace(e, e.valueSpace * (6/5));
 			e.addText(e, _("Never"), 0);
 			e.addText(e, _("Default"), -1);
 			e.addText(e, _("Always"), 1);
@@ -80,31 +81,32 @@ void XonoticGameWeaponsSettingsTab_fill(entity me)
 		me.TDempty(me, 0.2);
 		me.TD(me, 1, 2.8/3, e = makeXonoticRadioButton_T(1, "cl_gunalign", "4", _("Left align"),
 			_("Position of the weapon model; requires reconnect")));
-			setDependent(e, "r_drawviewmodel", 1, 1);
+			setDependentNOT(e, "cl_viewmodel_alpha", 0);
+			setDependentAND(e, "r_drawviewmodel", 1, 1);
 		me.TD(me, 1, 2.8/3, e = makeXonoticRadioButton_T(1, "cl_gunalign", "1", _("Center"),
 			_("Position of the weapon model; requires reconnect")));
-			setDependent(e, "r_drawviewmodel", 1, 1);
+			setDependentNOT(e, "cl_viewmodel_alpha", 0);
+			setDependentAND(e, "r_drawviewmodel", 1, 1);
 		me.TD(me, 1, 2.8/3, e = makeXonoticRadioButton_T(1, "cl_gunalign", "3", _("Right align"),
 			_("Position of the weapon model; requires reconnect")));
-			setDependent(e, "r_drawviewmodel", 1, 1);
+			setDependentNOT(e, "cl_viewmodel_alpha", 0);
+			setDependentAND(e, "r_drawviewmodel", 1, 1);
 	me.TR(me);
 		me.TDempty(me, 0.2);
 		me.TD(me, 1, 2.8/2, e = makeXonoticCheckBox_T(0, "cl_followmodel", _("Gun model swaying"), "-"));
 			makeMulti(e, "cl_leanmodel");
-			setDependent(e, "r_drawviewmodel", 1, 1);
+			setDependentNOT(e, "cl_viewmodel_alpha", 0);
+			setDependentAND(e, "r_drawviewmodel", 1, 1);
 		me.TD(me, 1, 2.8/2, e = makeXonoticCheckBox(0, "cl_bobmodel", _("Gun model bobbing")));
-			setDependent(e, "r_drawviewmodel", 1, 1);
+			setDependentNOT(e, "cl_viewmodel_alpha", 0);
+			setDependentAND(e, "r_drawviewmodel", 1, 1);
 	me.TR(me);
-			me.TD(me, 1, 1.2, e = makeXonoticTextLabel(0, _("Weapon model opacity:")));
+			me.TD(me, 1, 4/3, e = makeXonoticTextLabel(0, _("Weapon model opacity:")));
 				setDependent(e, "r_drawviewmodel", 1, 1);
-			me.TD(me, 1, 1.8, e = makeXonoticMixedSlider("cl_viewmodel_alpha"));
+			me.TD(me, 1, 5/3, e = makeXonoticSlider(0.05, 1, 0.05, "cl_viewmodel_alpha"));
+				e.setValueSpace(e, e.valueSpace * (6/5));
+				e.formatString = "%";
 				setDependent(e, "r_drawviewmodel", 1, 1);
-				e.addText(e, "15%", 0.15);
-				e.addText(e, "25%", 0.25);
-				e.addText(e, "50%", 0.5);
-				e.addText(e, "75%", 0.75);
-				e.addText(e, "100%", 1);
-				e.configureXonoticMixedSliderValues(e);
 
 	me.TR(me);
 	me.TR(me);

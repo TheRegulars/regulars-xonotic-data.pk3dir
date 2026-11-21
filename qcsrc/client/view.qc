@@ -6,7 +6,6 @@
 #include <client/hud/_mod.qh>
 #include <client/hud/panel/quickmenu.qh>
 #include <client/hud/panel/scoreboard.qh>
-#include <client/mapvoting.qh>
 #include <client/mutators/_mod.qh>
 #include <client/shownames.qh>
 #include <common/anim.qh>
@@ -15,11 +14,12 @@
 #include <common/deathtypes/all.qh>
 #include <common/debug.qh>
 #include <common/ent_cs.qh>
-#include <common/gamemodes/_mod.qh>
+#include <common/gametypes/_mod.qh>
 #include <common/impulses/all.qh>
 #include <common/mapinfo.qh>
 #include <common/mapobjects/target/music.qh>
 #include <common/mapobjects/trigger/viewloc.qh>
+#include <common/mapvoting/_mod.qh>
 #include <common/minigames/cl_minigames.qh>
 #include <common/minigames/cl_minigames_hud.qh>
 #include <common/mutators/mutator/powerups/_mod.qh>
@@ -402,7 +402,7 @@ void fpscounter_update()
 
 	float currentTime = gettime(GETTIME_FRAMESTART);
 
-	showfps_framecounter += 1;
+	++showfps_framecounter;
 	if(currentTime - showfps_prevfps_time > STAT(SHOWFPS))
 	{
 		float fps = showfps_framecounter / (currentTime - showfps_prevfps_time);
@@ -520,25 +520,28 @@ vector GetCurrentFov(float fov)
 	}
 	else
 	{
-		// initialize zoom scroll in the first frame / reset zoom scroll when fully zoomed out
-		if (!zoomscroll_factor || (current_viewzoom == 1 && !zoomdir))
+		if (autocvar_cl_zoomscroll && autocvar_cl_zoomscroll_scale)
 		{
-			zoomscroll_factor_target = zoomfactor;
-			zoomscroll_factor = zoomfactor;
-		}
-		if (zoomscroll_factor != zoomscroll_factor_target)
-		{
-			if (fabs(zoomscroll_factor - zoomscroll_factor_target) < 0.001 || autocvar_cl_zoomscroll_speed < 0) // snap
-				zoomscroll_factor = zoomscroll_factor_target;
-			else if (autocvar_cl_zoomscroll_speed != 0)
+			// initialize zoom scroll in the first frame / reset zoom scroll when fully zoomed out
+			if (!zoomscroll_factor || (current_viewzoom == 1 && !zoomdir))
 			{
-				// NOTE: this averaging formula is frametime independent
-				float avg_time = 1 / autocvar_cl_zoomscroll_speed;
-				float frac = 1 - exp(-drawframetime / max(0.001, avg_time));
-				zoomscroll_factor = frac * zoomscroll_factor_target + (1 - frac) * zoomscroll_factor;
+				zoomscroll_factor_target = zoomfactor;
+				zoomscroll_factor = zoomfactor;
 			}
+			if (zoomscroll_factor != zoomscroll_factor_target)
+			{
+				if (fabs(zoomscroll_factor - zoomscroll_factor_target) < 0.001 || autocvar_cl_zoomscroll_speed < 0) // snap
+					zoomscroll_factor = zoomscroll_factor_target;
+				else if (autocvar_cl_zoomscroll_speed != 0)
+				{
+					// NOTE: this averaging formula is frametime independent
+					float avg_time = 1 / autocvar_cl_zoomscroll_speed;
+					float frac = 1 - exp(-drawframetime / max(0.001, avg_time));
+					zoomscroll_factor = frac * zoomscroll_factor_target + (1 - frac) * zoomscroll_factor;
+				}
+			}
+			zoomfactor = zoomscroll_factor;
 		}
-		zoomfactor = zoomscroll_factor;
 
 		if(zoomspeed < 0) // instant zoom
 		{
@@ -728,7 +731,7 @@ int WantEventchase(entity this, bool want_vehiclechase)
 {
 	if(autocvar_cl_orthoview)
 		return 0;
-	if(STAT(GAME_STOPPED) || intermission)
+	if((STAT(GAME_STOPPED) || intermission) && spectatee_status != -1)
 		return 1;
 	if(this.viewloc)
 		return 1;
@@ -1257,7 +1260,7 @@ void HUD_Damage()
 
 	if(pain_threshold_lower && myhealth < pain_threshold_lower_health)
 	{
-		pain_threshold = pain_threshold - max(autocvar_hud_damage_pain_threshold_pulsating_min, fabs(sin(M_PI * time / autocvar_hud_damage_pain_threshold_pulsating_period))) * pain_threshold_lower * (1 - max(0, myhealth)/pain_threshold_lower_health);
+		pain_threshold -= max(autocvar_hud_damage_pain_threshold_pulsating_min, fabs(sin(M_PI * time / autocvar_hud_damage_pain_threshold_pulsating_period))) * pain_threshold_lower * (1 - max(0, myhealth)/pain_threshold_lower_health);
 	}
 
 	myhealth_flash_temp = bound(0, myhealth_flash - pain_threshold, 1);
@@ -1778,7 +1781,7 @@ void CSQC_UpdateView(entity this, float w, float h, bool notmenu)
 	// gameend hook is executed on CSQC VM shutdown if
 	// the shutdown happens before intermission start
 	if (intermission
-	&& (calledhooks & HOOK_START) // ensure that we have initiated a gamemode
+	&& (calledhooks & HOOK_START) // ensure that we have initiated a gametype
 	&& !(calledhooks & HOOK_END) // fire only once
 	&& !(calledhooks & HOOK_INTERMISSION))
 	{
@@ -1847,6 +1850,9 @@ void CSQC_UpdateView(entity this, float w, float h, bool notmenu)
 	HUD_Contents();
 	HUD_Damage();
 	View_PostProcessing();
+
+	if (ignore_list_apply_time && time > ignore_list_apply_time)
+		ignore_list_apply();
 
 	// draw 2D entities
 	IL_EACH(g_drawables_2d, it.draw2d, it.draw2d(it));
@@ -1918,7 +1924,7 @@ void CSQC_Demo_Camera()
 		dir = normalize(view_origin - current_position);
 		n = mouse_angles.z;
 		mouse_angles = vectoangles(dir);
-		mouse_angles.x = mouse_angles.x * -1;
+		mouse_angles.x = -mouse_angles.x;
 		mouse_angles.z = n;
 	}
 	else
@@ -1982,7 +1988,7 @@ void CSQC_Demo_Camera()
 
 	if(dimensions)
 	{
-		speed = speed * sqrt(1 / dimensions);
+		speed *= sqrt(1 / dimensions);
 		camera_offset += tmp * speed;
 	}
 
@@ -2005,8 +2011,8 @@ void CSQC_Demo_Camera()
 		if ( camera_mode == CAMERA_FREE )
 		{
 			current_origin = view_origin;
-			camera_offset = camera_offset - current_origin;
-			current_camera_offset = current_camera_offset - current_origin;
+			camera_offset -= current_origin;
+			current_camera_offset -= current_origin;
 		}
 
 		camera_mode = CAMERA_CHASE;

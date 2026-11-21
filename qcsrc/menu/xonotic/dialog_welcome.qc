@@ -83,7 +83,7 @@ void XonoticWelcomeDialog_readInputArgs(entity me, int argsbuf)
 	}
 	//me.serverinfo_name_ent.setText(me.serverinfo_name_ent, me.serverinfo_name);
 	me.serverinfo_MOTD_ent.setText(me.serverinfo_MOTD_ent, me.serverinfo_MOTD);
-	me.frame.setText(me.frame, me.serverinfo_name);
+	me.border.setText(me.border, me.serverinfo_name);
 }
 
 void XonoticWelcomeDialog_draw(entity me)
@@ -118,7 +118,7 @@ void XonoticWelcomeDialog_fill(entity me)
 	registercvar("_menu_welcome_dialog_available", "0", 0);
 	cvar_set("_menu_welcome_dialog_available", "1");
 
-	me.frame.allowColors = true; // allow color codes in the title
+	me.border.allowColors = true; // allow color codes in the title
 
 	entity e;
 
@@ -128,7 +128,7 @@ void XonoticWelcomeDialog_fill(entity me)
 			me.serverinfo_MOTD_ent.allowColors = true;
 			me.serverinfo_MOTD_ent.escapedNewLines = true;
 	me.gotoRC(me, me.rows - 1, 0);
-		me.TD(me, 1, me.columns / 2, me.joinButton_ent = makeXonoticCommandButton(_("Join"), '0 1 0', "cmd join", COMMANDBUTTON_CLOSE));
+		me.TD(me, 1, me.columns / 2, me.joinButton_ent = makeXonoticCommandButton(_("Join!"), '0 1 0', "cmd join", COMMANDBUTTON_CLOSE));
 			me.joinButton_ent.preferredFocusPriority = 1;
 		me.TD(me, 1, me.columns / 2, me.spectateButton_ent = makeXonoticCommandButton(_("Spectate"), '0 0 0', "cmd spectate", COMMANDBUTTON_CLOSE));
 }

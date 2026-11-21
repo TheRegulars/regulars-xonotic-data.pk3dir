@@ -2,7 +2,8 @@
 
 #include <common/command/_mod.qh>
 #include <common/constants.qh>
-#include <common/gamemodes/_mod.qh>
+#include <common/gametypes/_mod.qh>
+#include <common/mapvoting/_mod.qh>
 #include <common/monsters/_mod.qh>
 #include <common/net_linked.qh>
 #include <common/notifications/all.qh>
@@ -14,7 +15,6 @@
 #include <server/command/getreplies.qh>
 #include <server/intermission.qh>
 #include <server/main.qh>
-#include <server/mapvoting.qh>
 #include <server/mutators/_mod.qh>
 #include <server/race.qh>
 #include <server/weapons/selection.qh>
@@ -26,7 +26,7 @@
 // =========================================================
 
 // These strings are set usually during init in world.qc,
-// or also by some game modes or other functions manually,
+// or also by some gametypes or other functions manually,
 // and their purpose is to output information to clients
 // without using any extra processing time.
 
@@ -241,7 +241,7 @@ string getmaplist()
 	{
 		string col = (i % 2) ? "^2" : "^3";
 		maplist = cons(maplist, strcat(col, it));
-		mapcount += 1;
+		++mapcount;
 	});
 
 	MapInfo_ClearTemps();
@@ -264,8 +264,15 @@ string getlsmaps()
 			if(added > LSMAPS_MAX)
 				continue; // we still get the added count, but skip the actual processing
 
-			// todo: Check by play count of maps for other game types?
+			// todo: Check by play count of maps for other gametypes?
+			// TODO: standardized system for adding new map clause
+			bool isnewmap = false;
 			if((g_race || g_cts) && !race_readTime(MapInfo_Map_bspname, 1))
+				isnewmap = true;
+			else if(g_ctf && !stof(db_get(ServerProgsDB, strcat(MapInfo_Map_bspname, "/captimerecord/time"))))
+				isnewmap = true;
+
+			if(isnewmap)
 			{
 				newmaps = true;
 				if (i % 2) col = "^4*"; else col = "^5*";

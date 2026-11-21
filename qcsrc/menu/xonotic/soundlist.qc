@@ -5,8 +5,7 @@
 
 entity makeXonoticSoundList()
 {
-	entity me;
-	me = NEW(XonoticSoundList);
+	entity me = NEW(XonoticSoundList);
 	me.configureXonoticSoundList(me);
 	return me;
 }
@@ -19,8 +18,7 @@ void XonoticSoundList_configureXonoticSoundList(entity me)
 
 string XonoticSoundList_soundName(entity me, int i)
 {
-	string s;
-	s = search_getfilename(me.listSound, i);
+	string s = search_getfilename(me.listSound, i);
 	s = substring(s, 15, strlen(s) - 15 - 4);  // sound/cdtracks/, .ogg
 	return s;
 }
@@ -133,8 +131,10 @@ void XonoticSoundList_doubleClickListBoxItem(entity me, int i, vector where)
 
 float XonoticSoundList_keyDown(entity me, float scan, float ascii, float shift)
 {
-	if(scan == K_ENTER || scan == K_KP_ENTER || scan == K_SPACE) {
-		me.playlist.addToPlayList(me.playlist, me.soundName(me, me.selectedItem));
+	if (scan == K_ENTER || scan == K_KP_ENTER || scan == K_SPACE || ((shift & S_CTRL) && scan == K_MOUSE1)
+		|| ascii == '+')
+	{
+		SoundList_Add(NULL, me);
 		return 1;
 	}
 	else

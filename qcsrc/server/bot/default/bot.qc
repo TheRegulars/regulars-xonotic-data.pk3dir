@@ -48,7 +48,7 @@ entity bot_spawn()
 	if (bot)
 	{
 		setItemGroupCount();
-		currentbots = currentbots + 1;
+		++currentbots;
 		bot_setnameandstuff(bot);
 		ClientConnect(bot);
 		bot_setclientfields(bot);
@@ -174,12 +174,12 @@ void bot_setnameandstuff(entity this)
 	}
 	else
 	{
-		entity balance = TeamBalance_CheckAllowedTeams(NULL);
-		TeamBalance_GetTeamCounts(balance, NULL);
 		int smallest_team = -1;
 		int smallest_count = -1;
 		if (teamplay)
 		{
+			entity balance = TeamBalance_CheckAllowedTeams(NULL);
+	                TeamBalance_GetTeamCounts(balance, NULL);
 			for (int i = 1; i <= AVAILABLE_TEAMS; ++i)
 			{
 				// NOTE if (autocvar_g_campaign && autocvar_g_campaign_forceteam == i)
@@ -192,8 +192,8 @@ void bot_setnameandstuff(entity this)
 					smallest_count = count;
 				}
 			}
+			TeamBalance_Destroy(balance);
 		}
-		TeamBalance_Destroy(balance);
 		RandomSelection_Init();
 		while((readfile = fgets(file)))
 		{
@@ -219,7 +219,7 @@ void bot_setnameandstuff(entity this)
 				}
 			});
 			if (!conflict)
-				prio += 1;
+				++prio;
 			if (teamplay && !(autocvar_bot_vs_human && AVAILABLE_TEAMS == 2))
 			{
 				int forced_team = stof(argv(5));
@@ -268,7 +268,7 @@ void bot_setnameandstuff(entity this)
 			this.f = stof(argv(prio)) * w; \
 		else \
 			this.f = (!autocvar_g_campaign) * (2 * random() - 1) * r * w; \
-		prio++; \
+		++prio; \
 	MACRO_END
 	//print(bot_name, ": ping=", argv(9), "\n");
 
@@ -526,7 +526,7 @@ void bot_removefromlargestteam()
 	TeamBalance_Destroy(balance);
 	if(!bcount)
 		return; // no bots to remove
-	currentbots = currentbots - 1;
+	--currentbots;
 	dropclient(best);
 }
 
@@ -562,7 +562,7 @@ void bot_removenewest()
 	if(!bcount)
 		return; // no bots to remove
 
-	currentbots = currentbots - 1;
+	--currentbots;
 	dropclient(best);
 }
 
@@ -638,7 +638,7 @@ bool bot_fixcount(bool multiple_per_frame)
 	int bots;
 	// But don't remove bots immediately on level change, as the real players
 	// usually haven't rejoined yet
-	bots_would_leave = false;
+	bots_would_leave = 0;
 	if (autocvar_bot_vs_human && AVAILABLE_TEAMS == 2)
 		bots = min(ceil(fabs(autocvar_bot_vs_human) * activerealplayers), maxclients - realplayers);
 	else if ((realplayers || autocvar_bot_join_empty || (currentbots > 0 && time < 5)))
@@ -651,13 +651,10 @@ bool bot_fixcount(bool multiple_per_frame)
 		// add bots to reach minplayers if needed
 		bots = max(minbots, minplayers - activerealplayers);
 		// cap bots to the max players allowed by the server
-		int player_limit = GetPlayerLimit();
-		if(player_limit)
-			bots = min(bots, max(player_limit - activerealplayers, 0));
+		bots = min(bots, max(GetPlayerLimit() - activerealplayers, 0));
 		bots = min(bots, maxclients - realplayers);
 
-		if(bots > minbots)
-			bots_would_leave = true;
+		bots_would_leave = max(0, bots - minbots);
 	}
 	else
 	{
@@ -741,8 +738,7 @@ void bot_serverframe()
 
 	if(time > autoskill_nextthink)
 	{
-		float a;
-		a = autocvar_skill_auto;
+		float a = autocvar_skill_auto;
 		if(a)
 			autoskill(a);
 		autoskill_nextthink = time + 5;
@@ -816,11 +812,10 @@ void bot_serverframe()
 
 		if (botframe_nextdangertime < time)
 		{
-			float interval;
-			interval = autocvar_bot_ai_dangerdetectioninterval;
+			float interval = autocvar_bot_ai_dangerdetectioninterval;
 			if (botframe_nextdangertime < time - interval * 1.5)
 				botframe_nextdangertime = time;
-			botframe_nextdangertime = botframe_nextdangertime + interval;
+			botframe_nextdangertime += interval;
 			botframe_updatedangerousobjects(autocvar_bot_ai_dangerdetectionupdates);
 		}
 	}

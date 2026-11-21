@@ -1,8 +1,7 @@
 #include "itemstime.qh"
 
-REGISTER_MUTATOR(itemstime, true);
-
 #ifdef GAMEQC
+REGISTER_MUTATOR(itemstime, true);
 REGISTER_NET_TEMP(itemstime)
 #endif
 
@@ -269,14 +268,14 @@ void DrawItemsTimeItem(vector myPos, vector mySize, float ar, string item_icon, 
 
 float Item_ItemsTime_GetTime(int item)
 {
-	if(autocvar__hud_configure)
+	if (autocvar__hud_configure)
 	{
-		switch(item)
+		switch (item)
 		{
-			case ITEM_ArmorMega.m_id: return time + 0;
-			case ITEM_HealthMega.m_id: return time + 8;
-			case ITEM_Strength.m_id: return time + 0;
-			case ITEM_Shield.m_id: return time + 4;
+			case ITEM_ArmorMega.m_id: return time + 8;
+			case ITEM_ArmorBig.m_id: return time + 0;
+			case ITEM_HealthMega.m_id: return time + 0;
+			case ITEM_Strength.m_id: return time + 4;
 		}
 
 		return -1; // don't show others
@@ -285,8 +284,10 @@ float Item_ItemsTime_GetTime(int item)
 		return ItemsTime_time[item];
 }
 
-void HUD_ItemsTime()
+void HUD_ItemsTime(bool should_draw)
 {
+	if (!should_draw)
+		return;
 	if (!autocvar__hud_configure)
 	{
 		if (!(
@@ -430,7 +431,7 @@ LABEL(iteration)
 		if (row >= rows)
 		{
 			row = 0;
-			column = column + 1;
+			++column;
 		}
 		if(id == REGISTRY_MAX(Items)) // can happen only in the last fake iteration
 			break;

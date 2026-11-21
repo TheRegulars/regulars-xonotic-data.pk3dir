@@ -1,18 +1,13 @@
 #include "scores_rules.qh"
 
-#include <common/gamemodes/rules.qh>
+#include <common/gametypes/rules.qh>
 #include <common/stats.qh>
 #include <common/weapons/_all.qh>
 #include <server/client.qh>
 #include <server/scores.qh>
 #include <server/teamplay.qh>
 
-int ScoreRules_teams;
-
-bool IsTeamAvailable(int team_num)
-{
-	return boolean(ScoreRules_teams & Team_TeamToBit(team_num));
-}
+int autocvar_sv_showskill;
 
 int NumTeams(int teams)
 {
@@ -29,8 +24,10 @@ void ScoreRules_basics(int teams, float sprio, float stprio, float score_enabled
 	for(int i = 0; i < MAX_TEAMSCORE; ++i)
 		ScoreInfo_SetLabel_TeamScore(i, "", 0);
 
-	ScoreRules_teams = teams;
+	teamplay_bitmask = teams;
 	AVAILABLE_TEAMS = NumTeams(teams);
+	if (AVAILABLE_TEAMS)
+		Team_InitTeams();
 
 	if(score_enabled)
 		ScoreInfo_SetLabel_TeamScore(ST_SCORE, "score", stprio);
@@ -58,7 +55,8 @@ void ScoreRules_basics(int teams, float sprio, float stprio, float score_enabled
 		ScoreInfo_SetLabel_PlayerScore(SP_SPWN_KILLS, "spawnkills", 0);
 		ScoreInfo_SetLabel_PlayerScore(SP_SPWN_KILLED, "spawnkilled", 0);
 
-		ScoreInfo_SetLabel_PlayerScore(SP_SKILL, "skill", SFL_NOT_SORTABLE);
+		if (autocvar_sv_showskill == 1 || (autocvar_sv_showskill == 2 && teamplay))
+			ScoreInfo_SetLabel_PlayerScore(SP_SKILL, "skill", SFL_NOT_SORTABLE);
 	}
 
 	if(STAT(SHOWFPS))
@@ -67,17 +65,5 @@ void ScoreRules_basics(int teams, float sprio, float stprio, float score_enabled
 
 void ScoreRules_basics_end()
 {
-	ScoreInfo_Init(ScoreRules_teams);
-}
-
-void ScoreRules_generic()
-{
-	int teams = 0;
-	if (teamplay)
-	{
-		entity balance = TeamBalance_CheckAllowedTeams(NULL);
-		teams = TeamBalance_GetAllowedTeams(balance);
-		TeamBalance_Destroy(balance);
-	}
-	GameRules_scoring(teams, SFL_SORT_PRIO_PRIMARY, SFL_SORT_PRIO_PRIMARY, {});
+	ScoreInfo_Init(teamplay_bitmask);
 }

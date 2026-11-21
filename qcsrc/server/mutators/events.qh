@@ -71,10 +71,10 @@ MUTATOR_HOOKABLE(reset_map_global, EV_reset_map_global);
     /**/
 MUTATOR_HOOKABLE(reset_map_players, EV_reset_map_players);
 
-/** returns 1 if clearing player score shall not be allowed */
-#define EV_ForbidPlayerScore_Clear(i, o) \
+/** returns 1 if player score shall be cleared with g_score_resetonjoin -1 */
+#define EV_PreferPlayerScore_Clear(i, o) \
     /**/
-MUTATOR_HOOKABLE(ForbidPlayerScore_Clear, EV_ForbidPlayerScore_Clear);
+MUTATOR_HOOKABLE(PreferPlayerScore_Clear, EV_PreferPlayerScore_Clear);
 
 /** called when a player disconnects */
 #define EV_ClientDisconnect(i, o) \
@@ -649,13 +649,13 @@ MUTATOR_HOOKABLE(Item_RespawnCountdown, EV_Item_RespawnCountdown);
 
 /**
  * called when a bot checks a target to attack
- * return false to allow the bot to attack the target (inverted logic)
+ * return true to forbid the bot from attacking the target
  */
-#define EV_BotShouldAttack(i, o) \
+#define EV_Bot_ForbidAttack(i, o) \
     /** bot */    i(entity, MUTATOR_ARGV_0_entity) \
     /** target */ i(entity, MUTATOR_ARGV_1_entity) \
     /**/
-MUTATOR_HOOKABLE(BotShouldAttack, EV_BotShouldAttack);
+MUTATOR_HOOKABLE(Bot_ForbidAttack, EV_Bot_ForbidAttack);
 
 /**
  * called whenever a player goes through a portal gun teleport
@@ -947,12 +947,6 @@ MUTATOR_HOOKABLE(Race_FinalCheckpoint, EV_Race_FinalCheckpoint);
     /**/
 MUTATOR_HOOKABLE(ClientKill, EV_ClientKill);
 
-/** called when player is about to be killed during kill command or changing teams */
-#define EV_ClientKill_Now(i, o) \
-    /** player */        i(entity, MUTATOR_ARGV_0_entity) \
-    /**/
-MUTATOR_HOOKABLE(ClientKill_Now, EV_ClientKill_Now);
-
 #define EV_FixClientCvars(i, o) \
     /** player */        i(entity, MUTATOR_ARGV_0_entity) \
     /**/
@@ -1127,14 +1121,6 @@ MUTATOR_HOOKABLE(Player_ChangeTeam, EV_Player_ChangeTeam);
     /**/
 MUTATOR_HOOKABLE(Player_ChangedTeam, EV_Player_ChangedTeam);
 
-/**
- * Called when player is about to be killed when changing teams. Return true to block killing.
- */
-#define EV_Player_ChangeTeamKill(i, o) \
-    /** player */    i(entity, MUTATOR_ARGV_0_entity) \
-    /**/
-MUTATOR_HOOKABLE(Player_ChangeTeamKill, EV_Player_ChangeTeamKill);
-
 /**/
 #define EV_URI_GetCallback(i, o) \
 	/** id */       i(float, MUTATOR_ARGV_0_float) \
@@ -1173,6 +1159,7 @@ MUTATOR_HOOKABLE(CopyBody, EV_CopyBody);
     /** ret */ i(int, MUTATOR_ARGV_1_int) \
     /**/ o(int, MUTATOR_ARGV_1_int) \
     /** message */ i(string, MUTATOR_ARGV_2_string) \
+    /** private msg target */ i(entity, MUTATOR_ARGV_3_entity) \
     /**/
 MUTATOR_HOOKABLE(ChatMessage, EV_ChatMessage);
 

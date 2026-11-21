@@ -1,14 +1,13 @@
 #include "screenshotlist.qh"
 
-#include "dialog_multiplayer_media_screenshot.qh"
-#include "dialog_multiplayer_media_screenshot_viewer.qh"
+#include "dialog_media_screenshot.qh"
+#include "dialog_media_screenshot_viewer.qh"
 #include "inputbox.qh"
 #include "../item/modalcontroller.qh"
 
 entity makeXonoticScreenshotList()
 {
-	entity me;
-	me = NEW(XonoticScreenshotList);
+	entity me = NEW(XonoticScreenshotList);
 	me.configureXonoticScreenshotList(me);
 	return me;
 }
@@ -21,8 +20,7 @@ void XonoticScreenshotList_configureXonoticScreenshotList(entity me)
 
 string XonoticScreenshotList_screenshotName(entity me, float i)
 {
-	string s;
-	s = bufstr_get(me.listScreenshot, i);
+	string s = bufstr_get(me.listScreenshot, i);
 
 	if(substring(s, 0, 1) == "/")
 		s = substring(s, 1, strlen(s) - 1);  // remove the first forward slash
@@ -247,7 +245,8 @@ void XonoticScreenshotList_doubleClickListBoxItem(entity me, float i, vector whe
 
 float XonoticScreenshotList_keyDown(entity me, float scan, float ascii, float shift)
 {
-	if(scan == K_ENTER || scan == K_KP_ENTER || scan == K_MOUSE2 || scan == K_SPACE) {
+	if (scan == K_ENTER || scan == K_KP_ENTER || scan == K_MOUSE2 || scan == K_SPACE || ((shift & S_CTRL) && scan == K_MOUSE1))
+	{
 		me.startScreenshot(me);
 		return 1;
 	}

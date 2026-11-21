@@ -7,7 +7,6 @@ float autocvar_sv_spectator_speed_multiplier_max = 5;
 void sys_phys_fix(entity this, float dt)
 {
 	WarpZone_PlayerPhysics_FixVAngle(this);
-	Physics_UpdateStats(this);
 	PM_ClientMovement_UpdateStatus(this);
 }
 
@@ -28,14 +27,14 @@ void sys_phys_monitor(entity this, float dt)
 {
 	int buttons = PHYS_INPUT_BUTTON_MASK(this);
 	anticheat_physics(this);
-	if (autocvar_sv_maxidle > 0 || autocvar_sv_maxidle_playertospectator > 0)
-	{
-		if (!PHYS_INPUT_BUTTON_CHAT(this))
-		if (buttons != CS(this).buttons_old
-		|| CS(this).movement != CS(this).movement_old
-		|| this.v_angle != CS(this).v_angle_old)
-			CS(this).parm_idlesince = time;
-	}
+
+	// always do this so active players don't get kicked if sv_maxidle* get enabled mid-match
+	if (!PHYS_INPUT_BUTTON_CHAT(this))
+	if (buttons != CS(this).buttons_old
+	|| CS(this).movement != CS(this).movement_old
+	|| this.v_angle != CS(this).v_angle_old)
+		CS(this).parm_idlesince = time;
+
 	PM_check_punch(this, dt);
 }
 
@@ -114,17 +113,6 @@ void sys_phys_fixspeed(entity this, float maxspeed_mod)
 		stuffcmd(this, strcat("cl_backspeed ", temps, "\n"));
 		stuffcmd(this, strcat("cl_sidespeed ", temps, "\n"));
 		stuffcmd(this, strcat("cl_upspeed ", temps, "\n"));
-	}
-
-	if (this.jumpspeedcap_min != autocvar_sv_jumpspeedcap_min)
-	{
-		this.jumpspeedcap_min = autocvar_sv_jumpspeedcap_min;
-		stuffcmd(this, sprintf("\ncl_jumpspeedcap_min \"%s\"\n", autocvar_sv_jumpspeedcap_min));
-	}
-	if (this.jumpspeedcap_max != autocvar_sv_jumpspeedcap_max)
-	{
-		this.jumpspeedcap_max = autocvar_sv_jumpspeedcap_max;
-		stuffcmd(this, sprintf("\ncl_jumpspeedcap_max \"%s\"\n", autocvar_sv_jumpspeedcap_max));
 	}
 }
 

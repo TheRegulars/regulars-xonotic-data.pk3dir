@@ -51,7 +51,7 @@ float updateConwidths(float width, float height, float pixelheight)
 
 	f = min(r.x / c.x, r.y / c.y);
 	if(f < 1)
-		c = c * f; // ensures that c_x <= r_x and c_y <= r_y
+		c *= f; // ensures that c_x <= r_x and c_y <= r_y
 
 	minfactor = min(1, 640 / c.x);            // can be > 1 only if c_x is <640
 	maxfactor = max(1, r.x / c.x, r.y / c.y); // can be < 1 only if r_x < c_x and r_y < c_y
@@ -64,7 +64,7 @@ float updateConwidths(float width, float height, float pixelheight)
 		f = 1 + (minfactor - 1) * sz;
 	else
 		f = 1;
-	c = c * f; // fteqcc fail
+	c *= f; // fteqcc fail
 
 	c_x = rint(c.x);
 	c_y = rint(c.y);
@@ -82,8 +82,7 @@ float updateConwidths(float width, float height, float pixelheight)
 }
 entity makeXonoticResolutionSlider()
 {
-	entity me;
-	me = NEW(XonoticResolutionSlider);
+	entity me = NEW(XonoticResolutionSlider);
 	me.configureXonoticResolutionSlider(me);
 	return me;
 }
@@ -210,7 +209,7 @@ void XonoticResolutionSlider_loadResolutions(entity me, float fullscreen)
 }
 void XonoticResolutionSlider_loadCvars(entity me)
 {
-	me.setValueFromIdentifier_noAnim(me, strcat(cvar_string("_menu_vid_width"), " ", cvar_string("_menu_vid_height"), " ", cvar_string("_menu_vid_pixelheight")));
+	me.setValueFromIdentifier(me, strcat(cvar_string("_menu_vid_width"), " ", cvar_string("_menu_vid_height"), " ", cvar_string("_menu_vid_pixelheight")), false);
 }
 void XonoticResolutionSlider_saveCvars(entity me)
 {

@@ -20,7 +20,7 @@ void XonoticMapInfoDialog_loadMapInfo(entity me, int i, entity mlb)
 	if(!draw_PictureExists(me.currentMapPreviewImage)) // Quake 3 compatibility
 		strcpy(me.currentMapPreviewImage, strcat("/levelshots/", MapInfo_Map_bspname));
 
-	me.frame.setText(me.frame, me.currentMapBSPName);
+	me.border.setText(me.border, me.currentMapBSPName);
 	me.titleLabel.setText(me.titleLabel, me.currentMapTitle);
 	me.authorLabel.setText(me.authorLabel, me.currentMapAuthor);
 	me.descriptionLabel.setText(me.descriptionLabel, me.currentMapDescription);
@@ -31,8 +31,7 @@ void XonoticMapInfoDialog_loadMapInfo(entity me, int i, entity mlb)
 
 	for(i = 0; i < GameType_GetTotalCount(); ++i)
 	{
-		entity e;
-		e = me.(typeLabels[i]);
+		entity e = me.(typeLabels[i]);
 		e.disabled = !(MapInfo_Map_supportedGametypes & GameType_GetID(i).gametype_flags);
 	}
 
@@ -52,16 +51,16 @@ void XonoticMapInfoDialog_fill(entity me)
 		me.TD(me, 1, 1, e = makeXonoticTextLabel(0, _("Title:")));
 		me.TD(me, 1, w-1, e = makeXonoticTextLabel(0, ""));
 			e.colorL = SKINCOLOR_MAPLIST_TITLE;
-			e.allowCut = 1;
+			e.allowCut = true;
 			me.titleLabel = e;
 	me.TR(me);
 		me.TD(me, 1, 1, e = makeXonoticTextLabel(0, _("Author:")));
 		me.TD(me, 1, w-1, e = makeXonoticTextLabel(0, ""));
 			e.colorL = SKINCOLOR_MAPLIST_AUTHOR;
-			e.allowCut = 1;
+			e.allowCut = true;
 			me.authorLabel = e;
 	me.TR(me);
-		me.TD(me, 1, w, e = makeXonoticTextLabel(0, _("Game types:")));
+		me.TD(me, 1, w, e = makeXonoticTextLabel(0, _("Gametypes:")));
 
 	n = ceil(GameType_GetTotalCount() / (me.rows - 6));
 	wgt = (w - 0.2) / n;
@@ -78,7 +77,7 @@ void XonoticMapInfoDialog_fill(entity me)
 
 	me.gotoRC(me, me.rows - 2, 0);
 		me.TD(me, 1, me.columns, e = makeXonoticTextLabel(0.5, ""));
-			e.allowCut = 1;
+			e.allowCut = true;
 			me.descriptionLabel = e;
 
 	me.gotoRC(me, me.rows - 1, 0);

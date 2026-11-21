@@ -1,11 +1,11 @@
 #include "dialog_singleplayer.qh"
 
-#include <common/gamemodes/_mod.qh>
+#include <common/gametypes/_mod.qh>
 #include "bigbutton.qh"
-#include "commandbutton.qh"
 #include "leavematchbutton.qh"
 #include "radiobutton.qh"
 #include "textlabel.qh"
+#include "mainwindow.qh"
 #include "campaign.qh"
 
 void InstantAction_LoadMap(entity btn, entity dummy)
@@ -111,8 +111,7 @@ void InstantAction_LoadMap(entity btn, entity dummy)
 	string s;
 	do
 	{
-		float m;
-		m = floor(random() * MapInfo_count);
+		float m = floor(random() * MapInfo_count);
 		s = MapInfo_BSPName_ByID(m);
 	}
 	while(!fexists(sprintf("maps/%s.waypoints", s)));
@@ -127,10 +126,9 @@ void InstantAction_LoadMap(entity btn, entity dummy)
 	MapInfo_LoadMap(s, 1);
 
 	// configure bots
-	float p;
 	pmin = pstep * ceil(pmin / pstep);
 	pmax = pstep * floor(pmax / pstep);
-	p = pmin + pstep * floor(random() * ((pmax - pmin) / pstep + 1));
+	float p = pmin + pstep * floor(random() * ((pmax - pmin) / pstep + 1));
 
 	// cvar_set doesn't always work starting an InstantAction game while playing the campaign
 	//cvar_set("bot_number", ftos(p - 1));
@@ -145,15 +143,15 @@ void XonoticSingleplayerDialog_fill(entity me)
 	entity e, btnPrev, btnNext, lblTitle;
 
 	me.TR(me);
-		me.TDempty(me, (me.columns - 3) / 2);
-		me.TD(me, 2, 3, e = makeXonoticBigButton(_("Instant action! (random map with bots)"), '0 0 0'));
+		me.TDempty(me, (me.columns - 3) * 0.5);
+		me.TD(me, 2, 3, e = makeXonoticBigButton(_("Instant action with bots!"), '0 0 0'));
 			e.onClick = InstantAction_LoadMap;
 			e.onClickEntity = NULL;
 	me.TR(me);
 	me.TR(me);
 	me.TR(me);
 		me.TD(me, 1, 1, btnPrev = makeXonoticButton("<<", '0 0 0'));
-		me.TD(me, 1, me.columns - 2, lblTitle = makeXonoticTextLabel(0.5, "???"));
+		me.TD(me, 1, me.columns - 2, lblTitle = makeXonoticHeaderLabel("???"));
 		me.TD(me, 1, 1, btnNext = makeXonoticButton(">>", '0 0 0'));
 	me.TR(me);
 		me.TD(me, me.rows - 6, me.columns, me.campaignBox = makeXonoticCampaignList());
@@ -174,7 +172,7 @@ void XonoticSingleplayerDialog_fill(entity me)
 		me.TDempty(me, me.columns * 1/13);
 		me.TD(me, 1, me.columns * 5/13, e = makeXonoticLeaveMatchButton('0 0 0', 0));
 		me.TDempty(me, me.columns * 1/13);
-		me.TD(me, 1, me.columns * 5/13, e = makeXonoticButton(_("Play campaign!"), '0 0 0'));
+		me.TD(me, 1, me.columns * 5/13, e = makeXonoticButton(_("Play campaign!"), '0 1 0'));
 			e.onClick = CampaignList_LoadMap;
 			e.onClickEntity = me.campaignBox;
 }

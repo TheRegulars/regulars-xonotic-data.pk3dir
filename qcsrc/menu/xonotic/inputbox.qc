@@ -1,17 +1,16 @@
 #include "inputbox.qh"
 
-entity makeXonoticInputBox_T(float doEditColorCodes, string theCvar, string theTooltip)
+entity makeXonoticInputBox_T(bool doEditColorCodes, string theCvar, string theTooltip)
 {
-	entity me;
-	me = NEW(XonoticInputBox);
+	entity me = NEW(XonoticInputBox);
 	me.configureXonoticInputBox(me, doEditColorCodes, theCvar, theTooltip);
 	return me;
 }
-entity makeXonoticInputBox(float doEditColorCodes, string theCvar)
+entity makeXonoticInputBox(bool doEditColorCodes, string theCvar)
 {
 	return makeXonoticInputBox_T(doEditColorCodes, theCvar, string_null);
 }
-void XonoticInputBox_configureXonoticInputBox(entity me, float doEditColorCodes, string theCvar, string theTooltip)
+void XonoticInputBox_configureXonoticInputBox(entity me, bool doEditColorCodes, string theCvar, string theTooltip)
 {
 	me.configureInputBox(me, "", 0, me.fontSize, me.image);
 	me.editColorCodes = doEditColorCodes;
@@ -52,8 +51,7 @@ void XonoticInputBox_saveCvars(entity me)
 }
 float XonoticInputBox_keyDown(entity me, float key, float ascii, float shift)
 {
-	float r;
-	r = 0;
+	float r = 0;
 	if(key == K_ENTER || key == K_KP_ENTER)
 	{
 		if(me.controlledCvar)

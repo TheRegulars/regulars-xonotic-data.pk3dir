@@ -8,7 +8,6 @@
 #include <client/hud/panel/quickmenu.qh>
 #include <client/hud/panel/scoreboard.qh>
 #include <client/items/items.qh>
-#include <client/mapvoting.qh>
 #include <client/mutators/_mod.qh>
 #include <client/shownames.qh>
 #include <client/view.qh>
@@ -20,10 +19,11 @@
 #include <common/effects/effect.qh>
 #include <common/effects/qc/_mod.qh>
 #include <common/ent_cs.qh>
-#include <common/gamemodes/gamemode/nexball/cl_nexball.qh>
+#include <common/gametypes/gametype/nexball/cl_nexball.qh>
 #include <common/items/_mod.qh>
 #include <common/mapinfo.qh>
 #include <common/mapobjects/_mod.qh>
+#include <common/mapvoting/_mod.qh>
 #include <common/minigames/cl_minigames.qh>
 #include <common/minigames/cl_minigames_hud.qh>
 #include <common/net_linked.qh>
@@ -185,7 +185,7 @@ void Shutdown()
 
 	cvar_set("slowmo", cvar_defstring("slowmo")); // reset it back to 'default'
 
-	// if _cl_hook_gamestart wasn't called with an actual gamemode
+	// if _cl_hook_gamestart wasn't called with an actual gametype
 	// before CSQC VM shutdown then call it with nop fallback here
 	if (!(calledhooks & HOOK_START) && !isdemo())
 		localcmd("\n_cl_hook_gamestart nop\n");
@@ -225,9 +225,7 @@ void Shutdown()
 void AuditLists()
 {
 	entity e;
-	entity prev;
-
-	prev = players;
+	entity prev = players;
 	for(e = prev.sort_next; e; prev = e, e = e.sort_next)
 	{
 		if(prev != e.sort_prev)
@@ -390,7 +388,7 @@ bool SetTeam(entity o, int Team)
 		if(o.has_team)
 		{
 			tm = GetTeam(o.team, false);
-			tm.team_size -= 1;
+			--tm.team_size;
 			o.has_team = 0;
 			return true;
 		}
@@ -401,17 +399,17 @@ bool SetTeam(entity o, int Team)
 		{
 			o.team = Team;
 			tm = GetTeam(Team, true);
-			tm.team_size += 1;
+			++tm.team_size;
 			o.has_team = 1;
 			return true;
 		}
 		else if(Team != o.team)
 		{
 			tm = GetTeam(o.team, false);
-			tm.team_size -= 1;
+			--tm.team_size;
 			o.team = Team;
 			tm = GetTeam(Team, true);
-			tm.team_size += 1;
+			++tm.team_size;
 			return true;
 		}
 	}
@@ -634,6 +632,7 @@ void Ent_RemovePlayerScore(entity this)
 		});
 		this.owner.ready = 0;
 		this.owner.eliminated = 0;
+		this.owner.ignored = false;
 		this.owner.colormap = 0;
 		// TODO add a hook to reset this Survival field
 		this.owner.survival_status = 0;
@@ -725,6 +724,38 @@ NET_HANDLE(ENT_CLIENT_TEAMSCORES, bool isnew)
 	Scoreboard_UpdateTeamPos(o);
 }
 
+void ignore_list_apply()
+{
+	for (entity pl = players.sort_next; pl; pl = pl.sort_next)
+		pl.ignored = false;
+
+	ignore_list_apply_time = 0;
+
+	if (ignore_list == "")
+		return;
+
+	FOREACH_WORD(ignore_list, true,
+	{
+		bool found = false;
+		int ignore_id = stoi(it);
+		for (entity pl = players.sort_next; pl; pl = pl.sort_next)
+		{
+			if (ignore_id == pl.sv_entnum + 1)
+			{
+				pl.ignored = true;
+				found = true;
+				break;
+			}
+		}
+		// when an ignored player is not found, it means their playerslot is not initialized yet
+		if (!found)
+			ignore_list_apply_time = time + 0.5; // retry after a while
+	});
+
+	if (ignore_list_apply_time == 0) // ignore_list applied
+		strfree(ignore_list);
+}
+
 NET_HANDLE(ENT_CLIENT_CLIENTDATA, bool isnew)
 {
 	make_pure(this);
@@ -790,6 +821,12 @@ NET_HANDLE(ENT_CLIENT_CLIENTDATA, bool isnew)
 	// we could get rid of spectatee_status, and derive it from player_localentnum and player_localnum
 
 	teamnagger = (f & 0x60) >> 5; // 0x60 = BIT(5) | BIT(6)
+
+	if (f & BIT(7))
+	{
+		strcpy(ignore_list, ReadString());
+		ignore_list_apply();
+	}
 }
 
 NET_HANDLE(ENT_CLIENT_NAGGER, bool isnew)
@@ -839,23 +876,18 @@ NET_HANDLE(ENT_CLIENT_NAGGER, bool isnew)
 NET_HANDLE(ENT_CLIENT_ELIMINATEDPLAYERS, bool isnew)
 {
 	make_pure(this);
-	int sf = 0;
-	serialize(byte, 0, sf);
-	if (sf & 1) {
-		for (int j = 0; j < maxclients; ++j) {
-			if (playerslots[j]) {
-				playerslots[j].eliminated = true;
-			}
+	for (int j = 0; j < maxclients; ++j) {
+		if (playerslots[j]) {
+			playerslots[j].eliminated = true;
 		}
-		for (int i = 1; i <= maxclients; i += 8) {
-			int f = 0;
-			serialize(byte, 0, f);
-			for (int b = 0; b < 8; ++b) {
-				if (f & BIT(b)) continue;
-				int j = i - 1 + b;
-				if (playerslots[j]) {
-					playerslots[j].eliminated = false;
-				}
+	}
+	for (int i = 1; i <= maxclients; i += 8) {
+		int f = ReadByte();
+		for (int b = 0; b < 8; ++b) {
+			if (f & BIT(b)) continue;
+			int j = i - 1 + b;
+			if (playerslots[j]) {
+				playerslots[j].eliminated = false;
 			}
 		}
 	}
@@ -993,7 +1025,7 @@ void CSQC_Ent_Remove(entity this)
 	delete(this);
 }
 
-void Gamemode_Init()
+void Gametype_Init()
 {
 	// fire game or demo start hooks here
 	if (!(calledhooks & HOOK_START))
@@ -1089,10 +1121,10 @@ NET_HANDLE(ENT_CLIENT_SCORES_INFO, bool isnew)
 	}
 	bool welcome_msg_too = ReadByte();
 	if (welcome_msg_too)
-		net_handle_ServerWelcome();
+		net_handle_ServerWelcome(); // executes cl_hook_mutator_* hooks too
 	return = true;
 	Scoreboard_InitScores();
-	Gamemode_Init();
+	Gametype_Init(); // executes cl_hook_gamestart_* hooks
 }
 
 NET_HANDLE(ENT_CLIENT_INIT, bool isnew)
@@ -1352,12 +1384,7 @@ NET_HANDLE(TE_CSQC_WEAPONCOMPLAIN, bool isNew)
 	}
 }
 
-string translate_modifications(string s)
-{
-	return build_mutator_list(s);
-}
-
-string translate_weaponarena(string s)
+string build_weaponarena_list(string s)
 {
 	if (s == "") return s;
 	if (s == "All Weapons Arena") return _("All Weapons Arena");
@@ -1432,8 +1459,8 @@ bool net_handle_ServerWelcome()
 	MapInfo_Map_author = flags & 8 ? ReadString() : "";
 	srv_minplayers = ReadByte();
 	srv_maxplayers = ReadByte();
-	string modifications = translate_modifications(ReadString());
-	string weaponarena_list = translate_weaponarena(ReadString());
+	string modifications = build_mutator_list(ReadString()); // executes cl_hook_mutator_* hooks too
+	string weaponarena_list = build_weaponarena_list(ReadString());
 	string cache_mutatormsg = ReadString();
 	string motd = ReadString();
 
@@ -1524,45 +1551,38 @@ NET_HANDLE(TE_CSQC_SERVERWELCOME, bool isNew)
 
 string _getcommandkey(string cmd_name, string command, bool forcename)
 {
-	string keys;
-	float n, j, k, l = 0;
-
 	if (!autocvar_hud_showbinds)
 		return cmd_name;
 
-	keys = db_get(binddb, command);
+	string key, keys = db_get(binddb, command);
+	int n, j, found = 0;
+	float k;
+
 	if (keys == "")
 	{
-		bool joy_active = cvar("joy_active");
+		const bool joy_active = cvar("joy_active");
 		n = tokenize(findkeysforcommand(command, 0)); // uses '...' strings
-		for(j = 0; j < n; ++j)
+		for (j = 0; j < n; ++j)
 		{
 			k = stof(argv(j));
-			if(k != -1)
-			{
-				string key = keynumtostring(k);
-				if(!joy_active && substring(key, 0, 3) == "JOY")
-					continue;
+			if (k == -1)
+				continue;
+			key = keynumtostring(k);
+			if (!joy_active && startsWith(key, "JOY"))
+				continue;
 
-				key = translate_key(key);
+			keys = cons_mid(keys, ", ", translate_key(key));
 
-				if (keys == "")
-					keys = key;
-				else
-					keys = strcat(keys, ", ", key);
-
-				++l;
-				if (autocvar_hud_showbinds_limit > 0 && autocvar_hud_showbinds_limit <= l)
-					break;
-			}
-
+			if (autocvar_hud_showbinds_limit > 0 && autocvar_hud_showbinds_limit <= ++found)
+				break;
 		}
 		if (keys == "")
 			keys = "NO_KEY";
 		db_put(binddb, command, keys);
 	}
 
-	if (keys == "NO_KEY") {
+	if (keys == "NO_KEY")
+	{
 		if (autocvar_hud_showbinds > 1)
 			return sprintf(_("%s (not bound)"), cmd_name);
 		else
@@ -1570,8 +1590,7 @@ string _getcommandkey(string cmd_name, string command, bool forcename)
 	}
 	else if (autocvar_hud_showbinds > 1 || forcename)
 		return sprintf("%s (%s)", cmd_name, keys);
-	else
-		return keys;
+	return keys;
 }
 
 /** engine callback */

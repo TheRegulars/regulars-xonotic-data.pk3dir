@@ -6,8 +6,8 @@
 #include <common/effects/all.qh>
 #include <common/effects/qc/globalsound.qh>
 #include <common/ent_cs.qh>
-#include <common/gamemodes/_mod.qh>
-#include <common/gamemodes/gamemode/nexball/sv_nexball.qh>
+#include <common/gametypes/_mod.qh>
+#include <common/gametypes/gametype/nexball/sv_nexball.qh>
 #include <common/items/_mod.qh>
 #include <common/items/inventory.qh>
 #include <common/mapobjects/func/conveyor.qh>
@@ -108,7 +108,7 @@ int CountSpectators(entity player, entity to)
 
 	FOREACH_CLIENT(IS_REAL_CLIENT(it) && IS_SPEC(it) && it != to && it.enemy == player,
 	{
-		spec_count++;
+		++spec_count;
 	});
 
 	return spec_count;
@@ -145,6 +145,8 @@ bool ClientData_Send(entity this, entity to, int sf)
 	                                sf |= BIT(4); // show spectators
 	if (autocvar_sv_teamnagger && teamplay && !(autocvar_bot_vs_human && AVAILABLE_TEAMS == 2))
 	                                sf |= (autocvar_sv_teamnagger & 0x03) << 5; // BIT(5) | BIT(6)
+	if (to.ignore_list && to.ignore_list_send_time == IGNORE_LIST_SEND_NOW && !IS_SPEC(to))
+	                                sf |= BIT(7); // ignore list (private, won't be sent to spectators)
 
 	WriteHeader(MSG_ENTITY, ENT_CLIENT_CLIENTDATA);
 	WriteByte(MSG_ENTITY, sf);
@@ -152,11 +154,19 @@ bool ClientData_Send(entity this, entity to, int sf)
 	if (sf & BIT(1))
 		WriteByte(MSG_ENTITY, CS(to).spectatee_status);
 
+	// spectator list is cleared on the client if this flag is not set
 	if(sf & BIT(4))
 	{
 		float specs = CountSpectators(e, to);
 		WriteByte(MSG_ENTITY, specs);
 		WriteSpectators(e, to);
+	}
+
+	// ignore list is NOT cleared on the client if this flag is not set
+	if (sf & BIT(7))
+	{
+		to.ignore_list_send_time = 0;
+		WriteString(MSG_ENTITY, strcat(to.ignore_list));
 	}
 
 	return true;
@@ -175,17 +185,17 @@ void ClientData_Detach(entity this)
 	CS(this).clientdata = NULL;
 }
 
-void ClientData_Touch(entity e)
+void ClientData_Touch(entity e, bool to_spectators_too)
 {
 	entity cd = CS(e).clientdata;
 	if (cd) cd.SendFlags = 1;
 
-	// make it spectatable
-	FOREACH_CLIENT(IS_REAL_CLIENT(it) && it != e && IS_SPEC(it) && it.enemy == e,
-	{
-		entity cd = CS(it).clientdata;
-		if (cd) cd.SendFlags = 1;
-	});
+	if (to_spectators_too)
+		FOREACH_CLIENT(IS_REAL_CLIENT(it) && it != e && IS_SPEC(it) && it.enemy == e,
+		{
+			entity cd_spec = CS(it).clientdata;
+			if (cd_spec) cd_spec.SendFlags = cd.SendFlags;
+		});
 }
 
 
@@ -334,6 +344,9 @@ void PutObserverInServer(entity this, bool is_forced, bool use_spawnpoint)
 		Send_Notification(NOTIF_ONE_ONLY, this, MSG_INFO, INFO_CHAT_NOSPECTATORS);
 
 	CS(this).spectatortime = time;
+	if (!autocvar_sv_spectate && CS(this).autojoin_checked) // unnecessary if autojoin succeeds, on failure it notifies
+		Send_Notification(NOTIF_ONE_ONLY, this, MSG_MULTI, SPECTATE_WARNING, autocvar_g_maxplayers_spectator_blocktime);
+
 	if(this.bot_attack)
 		IL_REMOVE(g_bot_targets, this);
 	this.bot_attack = false;
@@ -418,7 +431,7 @@ void PutObserverInServer(entity this, bool is_forced, bool use_spawnpoint)
 	}
 	else
 	{
-		SetPlayerTeam(this, -1, TEAM_CHANGE_SPECTATOR); // clears scores too in game modes without teams
+		SetPlayerTeam(this, -1, TEAM_CHANGE_SPECTATOR); // clears scores too in gametypes without teams
 		this.frags = FRAGS_SPECTATOR;
 	}
 
@@ -617,12 +630,17 @@ void PutPlayerInServer(entity this)
 
 	if (teamplay)
 	{
+		// bones_was_here: this MUST succeed, PutClientInServer->PutPlayerInServer
+		// can't handle failures (must only be called if they'd succeed).
 		if (this.bot_forced_team)
 			SetPlayerTeam(this, this.bot_forced_team, TEAM_CHANGE_MANUAL);
-		else if (this.wants_join > 0)
-			SetPlayerTeam(this, this.wants_join, TEAM_CHANGE_MANUAL);
-		else if (this.team <= 0 || this.wants_join < 0 || autocvar_g_campaign)
-			TeamBalance_JoinBestTeam(this);
+		else if (this.team <= 0)
+		{
+			if (this.wants_join > 0)
+				SetPlayerTeam(this, this.wants_join, TEAM_CHANGE_MANUAL);
+			else
+				TeamBalance_JoinBestTeam(this);
+		}
 	}
 
 	entity spot = SelectSpawnPoint(this, false);
@@ -634,7 +652,6 @@ void PutPlayerInServer(entity this)
 
 	TRANSMUTE(Player, this);
 
-	CS(this).wasplayer = true;
 	this.iscreature = true;
 	this.teleportable = TELEPORT_NORMAL;
 	if(!this.damagedbycontents)
@@ -708,6 +725,8 @@ void PutPlayerInServer(entity this)
 	setthink(this, func_null); // players have no think function
 	this.nextthink = 0;
 	this.dmg_team = 0;
+	this.spawn_time = time;
+
 	PS(this).ballistics_density = autocvar_g_ballistics_density_player;
 
 	this.deadflag = DEAD_NO;
@@ -1173,8 +1192,11 @@ void ClientConnect(entity this)
 
 	bot_clientconnect(this);
 
+	// after bot_clientconnect
+	if (teamplay)
+		this.clientcolors = 0;
+
 	this.team = -1;
-	Player_DetermineForcedTeam(this);
 
 	TRANSMUTE(Observer, this);
 
@@ -1216,14 +1238,12 @@ void ClientConnect(entity this)
 	bot_relinkplayerlist();
 
 	CS(this).spectatortime = time;
-	if (!autocvar_sv_spectate)
-		// no centreprint here: player forced to join, or informed of why they can't via centreprint
-		Send_Notification(NOTIF_ONE_ONLY, this, MSG_INFO, INFO_SPECTATE_WARNING, autocvar_g_maxplayers_spectator_blocktime);
-
 	CS(this).jointime = time;
 
 	if (IS_REAL_CLIENT(this))
 	{
+		ignore_list_update_on_connection(this);
+
 		if (g_weaponarena_weapons == WEPSET(TUBA))
 			stuffcmd(this, "cl_cmd settemp chase_active 1\n");
 		// quickmenu file must be put in a subfolder with an unique name
@@ -1267,7 +1287,7 @@ void ClientConnect(entity this)
 
 	if (player_count == 1)
 	{
-		if (autocvar_sv_autopause && server_is_dedicated)
+		if (autocvar_sv_autopause && autocvar_sv_dedicated)
 			setpause(0);
 		localcmd("\nsv_hook_firstjoin\n");
 	}
@@ -1296,19 +1316,12 @@ void ClientDisconnect(entity this)
 {
 	assert(IS_CLIENT(this), return);
 
-	/* from "ignore" command */
 	strfree(this.ignore_list);
-	FOREACH_CLIENT(IS_REAL_CLIENT(it) && it.ignore_list,
+	FOREACH_CLIENT(IS_REAL_CLIENT(it),
 	{
-		if(it.crypto_idfp && it.crypto_idfp != "")
-			continue;
-		string mylist = ignore_removefromlist(it, this);
-		if(it.ignore_list)
-			strunzone(it.ignore_list);
-
-		it.ignore_list = strzone(mylist);
+		// don't remove permanent ignores from db, only from list
+		ignore_remove_player(it, this, false);
 	});
-	/* from "ignore" command */
 
 	PlayerStats_GameReport_FinalizePlayer(this);
 	if (this.vehicle) vehicles_exit(this.vehicle, VHEF_RELEASE);
@@ -1365,6 +1378,7 @@ void ClientDisconnect(entity this)
 	if (player_count == 0)
 		localcmd("\nsv_hook_lastleave\n");
 
+	if (!intermission_running)
 	if (!TeamBalance_QueuedPlayersTagIn(this))
 	if (autocvar_g_balance_teams_remove)
 		TeamBalance_RemoveExcessPlayers(NULL);
@@ -1373,27 +1387,28 @@ void ClientDisconnect(entity this)
 void ChatBubbleThink(entity this)
 {
 	this.nextthink = time;
-	if ((this.owner.alpha < 0) || this.owner.chatbubbleentity != this)
+
+	entity ownr = this.owner;
+	if (ownr.alpha < 0 || ownr.chatbubbleentity != this)
 	{
-		if(this.owner) // but why can that ever be NULL?
-			this.owner.chatbubbleentity = NULL;
+		if (ownr) // but why can that ever be NULL?
+			ownr.chatbubbleentity = NULL;
 		delete(this);
 		return;
 	}
 
 	this.mdl = "";
 
-	if ( !IS_DEAD(this.owner) && IS_PLAYER(this.owner) && !MUTATOR_CALLHOOK(ShowChatBubble, this.owner, this) )
+	if (!IS_DEAD(ownr) && IS_PLAYER(ownr) && !MUTATOR_CALLHOOK(ShowChatBubble, ownr, this))
 	{
-		if ( CS(this.owner).active_minigame && PHYS_INPUT_BUTTON_MINIGAME(this.owner) )
+		if (CS(ownr).active_minigame && PHYS_INPUT_BUTTON_MINIGAME(ownr))
 			this.mdl = "models/sprites/minigame_busy.iqm";
-		else if (PHYS_INPUT_BUTTON_CHAT(this.owner))
+		else if (PHYS_INPUT_BUTTON_CHAT(ownr))
 			this.mdl = "models/misc/chatbubble.spr";
 	}
 
-	if ( this.model != this.mdl )
+	if (this.model != this.mdl)
 		_setmodel(this, this.mdl);
-
 }
 
 void UpdateChatBubble(entity this)
@@ -1503,15 +1518,14 @@ void calculate_player_respawn_time(entity this)
 		this.respawn_countdown = -1; // do not count down
 
 	if(autocvar_g_forced_respawn)
-		this.respawn_flags = this.respawn_flags | RESPAWN_FORCE;
+		this.respawn_flags |= RESPAWN_FORCE;
 }
 
 // LordHavoc: this hack will be removed when proper _pants/_shirt layers are
 // added to the model skins
 /*void UpdateColorModHack()
 {
-	float c;
-	c = this.clientcolors & 15;
+	float c = this.clientcolors & 15;
 	// LordHavoc: only bothering to support white, green, red, yellow, blue
 	     if (!teamplay) this.colormod = '0 0 0';
 	else if (c ==  0) this.colormod = '1.00 1.00 1.00';
@@ -1782,7 +1796,7 @@ void SetZoomState(entity this, float newzoom)
 	if(newzoom != CS(this).zoomstate)
 	{
 		CS(this).zoomstate = newzoom;
-		ClientData_Touch(this);
+		ClientData_Touch(this, true);
 	}
 	zoomstate_set = true;
 }
@@ -1910,7 +1924,7 @@ bool SpectateSet(entity this)
 	if(!IS_PLAYER(this.enemy))
 		return false;
 
-	ClientData_Touch(this.enemy);
+	ClientData_Touch(this.enemy, true);
 
 	msg_entity = this;
 	WriteByte(MSG_ONE, SVC_SETVIEW);
@@ -1937,7 +1951,7 @@ void SetSpectatee_status(entity this, int spectatee_num)
 			STAT(PRESSED_KEYS, this) = 0;
 		}
 
-		ClientData_Touch(this);
+		ClientData_Touch(this, true);
 
 		// init or clear race data
 		if ((g_race || g_cts) && g_race_qualifying && IS_REAL_CLIENT(this))
@@ -1993,7 +2007,8 @@ void SetSpectatee(entity this, entity spectatee)
 		SetSpectatee_status(this, etof(spectatee));
 
 	// needed to update spectator list
-	if(old_spectatee) { ClientData_Touch(old_spectatee); }
+	if(old_spectatee)
+		ClientData_Touch(old_spectatee, true);
 }
 
 bool Spectate(entity this, entity pl)
@@ -2083,7 +2098,7 @@ void ShowRespawnCountdown(entity this)
 
 bool ShowTeamSelection(entity this)
 {
-	if (!teamplay || autocvar_g_campaign || autocvar_g_balance_teams || this.team_selected || (CS(this).wasplayer && autocvar_g_changeteam_banned) || Player_HasRealForcedTeam(this))
+	if (!teamplay || autocvar_g_campaign || autocvar_g_balance_teams || this.team_selected || Player_HasRealForcedTeam(this))
 		return false;
 	if (QueuedPlayersReady(this, true))
 		return false;
@@ -2097,16 +2112,21 @@ void Join(entity this, bool queued_join)
 {
 	entity player_with_dibs = NULL;
 
-	if (autocvar_g_campaign && !campaign_bots_may_start && !game_stopped && time >= game_starttime)
-		ReadyRestart(true);
-
-	if(queued_join
-	&& TeamBalance_AreEqual(this, true)) // if a player couldn't tag in for balance, don't join them here as it would cause a stack
+	if (autocvar_g_campaign)
 	{
+		if (!campaign_bots_may_start && !game_stopped && time >= game_starttime)
+			ReadyRestart(true);
+		campaign_bots_may_start = true;
+	}
+
+	// If teams aren't equal and a player is queued then they chose a biggest team so they can't join yet.
+	if (queued_join && TeamBalance_AreEqual(this, true))
+	{
+		int clients_remaining = AVAILABLE_TEAMS;
 		// First we must join player(s) queued for specific team(s) (they chose first)
-		// so TeamBalance_JoinBestTeam() (if necessary) won't select the same team(s).
-		// Relies on `this` skipping the queue (this.team already set, this.wants_join not set) or using autoselect.
-		FOREACH_CLIENT(IS_REAL_CLIENT(it) && it != this && it.wants_join > 0,
+		// so TeamBalance_JoinBestTeam() won't select the same team(s).
+		// Assumes `this` was already assigned a team or is using autoselect.
+		FOREACH_CLIENT(it != this && it.wants_join > 0,
 		{
 			// detect any conflict between `this` and a queued player (queuePlayer() handles other conflicts)
 			if (this.team < 0 && this.team_selected > 0 // `this` can't have their preference
@@ -2114,17 +2134,35 @@ void Join(entity this, bool queued_join)
 				player_with_dibs = it;
 
 			Join(it, false);
+			--clients_remaining;
 		});
 
 		// Second pass: queued players whose team will be autoselected
-		FOREACH_CLIENT(IS_REAL_CLIENT(it) && it != this && it.wants_join < 0,
+		// in order of strongest to weakest for optimal balance.
+		for (; clients_remaining; --clients_remaining)
 		{
-			Join(it, false);
-		});
+			entity strongest_autoselect_client = NULL;
+			float strongest_autoselect_client_skill = 0;
+			FOREACH_CLIENT(it.wants_join < 0 || (it == this && it.team <= 0),
+			{
+				float it_skill = it.m_skill_mu ? it.m_skill_mu : server_skill_average; // average was set by TeamBalance_AreEqual()
+				if (it_skill > strongest_autoselect_client_skill)
+				{
+					strongest_autoselect_client = it;
+					strongest_autoselect_client_skill = it_skill;
+				}
+			});
+			if (strongest_autoselect_client == this) // can't just Join(); return; due to player_with_dibs
+			{
+				entity balance = TeamBalance_CheckAllowedTeams(this);
+				int best_team_index = TeamBalance_FindBestTeam(balance, this, true);
+				TeamBalance_Destroy(balance);
+				SetPlayerTeam(this, best_team_index, TEAM_CHANGE_AUTO);
+			}
+			else if (strongest_autoselect_client)
+				Join(strongest_autoselect_client, false);
+		}
 	}
-
-	if(autocvar_g_campaign)
-		campaign_bots_may_start = true;
 
 	Kill_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CPID_PREVENT_JOIN);
 
@@ -2139,11 +2177,10 @@ void Join(entity this, bool queued_join)
 			// limitation: notifications support only 1 translated team name
 			// so the team `this` preferred can't be mentioned, only the team they got assigned to.
 			Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, APP_TEAM_NUM(this.team, CENTER_JOIN_PLAY_TEAM_QUEUECONFLICT), player_with_dibs.netname);
-		else if (this.wants_join)
+		else
 		{
-			// Get queued player's attention
-			if (game_starttime <= time) // No countdown in progress
-				Send_Notification(NOTIF_ONE_ONLY, this, MSG_ANNCE, ANNCE_BEGIN);
+			if (this.wants_join && game_starttime < time && !warmup_stage) // No countdown running && not returning to warmup via ReadyRestart_force
+				Send_Notification(NOTIF_ONE_ONLY, this, MSG_ANNCE, ANNCE_BEGIN); // Get queued player's attention
 			Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, APP_TEAM_NUM(this.team, CENTER_JOIN_PLAY_TEAM));
 		}
 	}
@@ -2156,85 +2193,68 @@ int GetPlayerLimit()
 {
 	if(g_duel)
 		return 2; // TODO: this workaround is needed since the mutator hook from duel can't be activated before the gametype is loaded (e.g. switching modes via gametype vote screen)
+
 	// don't return map_maxplayers during intermission as it would interfere with MapHasRightSize()
-	int player_limit = (autocvar_g_maxplayers >= 0 || intermission_running) ? autocvar_g_maxplayers : map_maxplayers;
-	MUTATOR_CALLHOOK(GetPlayerLimit, player_limit);
-	player_limit = M_ARGV(0, int);
-	return player_limit < maxclients ? player_limit : 0;
+	int player_limit = autocvar_g_maxplayers > 0 ? autocvar_g_maxplayers : maxclients;
+	if (!intermission_running)
+	{
+		if (autocvar_g_maxplayers == -1 && map_maxplayers > 0)
+			player_limit = map_maxplayers;
+		MUTATOR_CALLHOOK(GetPlayerLimit, player_limit);
+		player_limit = M_ARGV(0, int);
+	}
+	return bound(0, player_limit, maxclients);
 }
 
 /**
- * Determines whether the player is allowed to join. This depends on cvar
- * g_maxplayers, if it isn't used this function always return true, otherwise
- * it checks whether the number of currently playing players exceeds g_maxplayers.
+ * Determines how many player slots are free. This depends on cvar g_maxplayers
+ * and other limits that apply to all clients which aren't specifically excepted.
  * @return int number of free slots for players, 0 if none
  */
-int nJoinAllowed(entity this, entity ignore)
+int nJoinAllowed(entity this)
 {
-	if(!ignore)
+	if(!this)
 	// this is called that way when checking if anyone may be able to join (to build qcstatus)
 	// so report 0 free slots if restricted
 	{
-		if(autocvar_g_forced_team_otherwise == "spectate")
-			return 0;
-		if(autocvar_g_forced_team_otherwise == "spectator")
+		if(autocvar_g_forced_team_otherwise == "spectate"
+		|| autocvar_g_forced_team_otherwise == "spectator"
+		|| (teamplay && lockteams))
 			return 0;
 	}
 
-	if(this && (Player_GetForcedTeamIndex(this) == TEAM_FORCE_SPECTATOR))
-		return 0; // forced spectators can never join
-
-	static float msg_time = 0;
-	if(this && !INGAME(this) && ignore && PlayerInList(this, autocvar_g_playban_list))
-	{
-		if(time > msg_time)
-		{
-			Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CENTER_JOIN_PLAYBAN);
-			msg_time = time + 0.5;
-		}
-		return 0;
-	}
-
-	// TODO simplify this
 	int totalClients = 0;
 	int currentlyPlaying = 0;
-	FOREACH_CLIENT(true,
+	FOREACH_CLIENT(it != this,
 	{
-		if(it != ignore)
-			++totalClients;
-		if(IS_REAL_CLIENT(it) && (IS_PLAYER(it) || INGAME(it)))
+		++totalClients;
+		if(IS_PLAYER(it) || INGAME(it))
 			++currentlyPlaying;
 	});
 
 	int player_limit = GetPlayerLimit();
 
-	int free_slots = 0;
-	if (!player_limit)
-		free_slots = maxclients - totalClients;
-	else if(player_limit > 0 && currentlyPlaying < player_limit)
-		free_slots = min(maxclients - totalClients, player_limit - currentlyPlaying);
+	int free_slots = max(0, player_limit - currentlyPlaying);
+	if (this || maxclients - totalClients) // don't add bot slots in the getstatus case if nobody can connect
+		free_slots += bots_would_leave;
+	if (!this) // getstatus case
+		free_slots = min(free_slots, maxclients - totalClients);
 
-	if(this && !INGAME(this) && ignore && !free_slots && time > msg_time)
-	{
-		Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CENTER_JOIN_PREVENT, player_limit);
-		msg_time = time + 0.5;
-	}
+	if(this && !free_slots)
+		Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CENTER_JOIN_PREVENT_MAXPLAYERS, player_limit);
 
 	return free_slots;
 }
 
-// Callsites other than ClientCommand_selectteam() should pass this.wants_join as team_index
+// Callsites other than ClientCommand_join() teamplay should pass this.wants_join as team_index
 // so the player won't accidentally reset a specific preference by pressing +jump
 // and will see the centreprint with their current preference each time they press +jump.
 bool queuePlayer(entity this, int team_index)
 {
-	if (IS_BOT_CLIENT(this) || !QueueNeeded(this))
-		return false;
-
 	// check if a queued player already chose the selected team
 	if (team_index > 0)
 	{
-		FOREACH_CLIENT(IS_REAL_CLIENT(it) && it != this && it.wants_join == team_index,
+		FOREACH_CLIENT(it != this && it.wants_join == team_index,
 		{
 			if (QueuedPlayersReady(this, false))
 			{
@@ -2277,6 +2297,7 @@ bool queuePlayer(entity this, int team_index)
 	return true;
 }
 
+float autocvar_g_maxping;
 bool joinAllowed(entity this, int team_index)
 {
 	if (CS(this).version_mismatch)
@@ -2291,19 +2312,46 @@ bool joinAllowed(entity this, int team_index)
 		return false;
 	}
 
-	if (QueueNeeded(this))
+	int forced_team_index = Player_GetForcedTeamIndex(this);
+	if (forced_team_index < TEAM_FORCE_DEFAULT || (teamplay && forced_team_index > AVAILABLE_TEAMS)) // PutPlayerInServer would bug out
 	{
-		if (team_index == 0) // so ClientCommand_selectteam() can check joinAllowed() before calling SetPlayerTeam() without chicken/egg problem
-			if (ShowTeamSelection(this)) return false; // only needed by callsites other than selectteam
+		if (forced_team_index > AVAILABLE_TEAMS)
+			Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, APP_TEAM_NUM(Team_IndexToTeam(forced_team_index), CENTER_TEAMCHANGE_FORCEDTEAM));
+		else // handles !teamplay case too
+			Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CENTER_JOIN_PREVENT_FORCEDSPEC);
+		return false;
+	}
+
+	if (!INGAME(this) && PlayerInList(this, autocvar_g_playban_list))
+	{
+		Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CENTER_JOIN_PLAYBAN);
+		return false;
+	}
+
+	// IS_PLAYER for most gametypes, INGAME for ca, lms, surv
+	if (autocvar_g_maxping && !(IS_PLAYER(this) || INGAME(this)) && !this.wants_join)
+	{
+		if (this.ping <= 0) return false; // too soon
+		if (this.ping > autocvar_g_maxping)
+		{
+			Send_Notification(NOTIF_ONE_ONLY, this, MSG_CENTER, CENTER_JOIN_PREVENT_PING);
+			return false;
+		}
+	}
+
+	if (QueueNeeded(this, team_index))
+	{
+		if (team_index == 0) // so ClientCommand_join() can check joinAllowed() before calling SetPlayerTeam() without chicken/egg problem
+			if (ShowTeamSelection(this)) return false; // only needed by callsites other than ClientCommand_join() teamplay
 		// queuePlayer called here so that only conditions above block queuing (g_maxplayers shouldn't)
 		if (queuePlayer(this, team_index)) return false;
-		if (!nJoinAllowed(this, this)) return false;
+		if (!nJoinAllowed(this)) return false;
 	}
 	else
 	{
-		if (!nJoinAllowed(this, this)) return false;
-		if (team_index == 0) // so ClientCommand_selectteam() can check joinAllowed() before calling SetPlayerTeam() without chicken/egg problem
-			if (ShowTeamSelection(this)) return false; // only needed by callsites other than selectteam
+		if (!nJoinAllowed(this)) return false;
+		if (team_index == 0) // so ClientCommand_join() can check joinAllowed() before calling SetPlayerTeam() without chicken/egg problem
+			if (ShowTeamSelection(this)) return false; // only needed by callsites other than ClientCommand_join() teamplay
 	}
 
 	return true;
@@ -2458,8 +2506,7 @@ bool PlayerThink(entity this)
 		this.dualwielding_prev = dualwielding;
 	}
 
-	// LordHavoc: allow firing on move frames (sub-ticrate), this gives better timing on slow servers
-	//if(frametime)
+	if (frametime)
 	{
 		for(int slot = 0; slot < MAX_WEAPONSLOTS; ++slot)
 		{
@@ -2468,17 +2515,22 @@ bool PlayerThink(entity this)
 				W_Vortex_Charge(this, weaponentity, frametime);
 			W_WeaponFrame(this, weaponentity);
 		}
-	}
 
-	if (frametime)
-	{
 		// WEAPONTODO: Add a weapon request for this
 		// rot vortex charge to the charge limit
 		for(int slot = 0; slot < MAX_WEAPONSLOTS; ++slot)
 		{
 			.entity weaponentity = weaponentities[slot];
-			if (WEP_CVAR(WEP_VORTEX, charge_rot_rate) && this.(weaponentity).vortex_charge > WEP_CVAR(WEP_VORTEX, charge_limit) && this.(weaponentity).vortex_charge_rottime < time)
-				this.(weaponentity).vortex_charge = bound(WEP_CVAR(WEP_VORTEX, charge_limit), this.(weaponentity).vortex_charge - WEP_CVAR(WEP_VORTEX, charge_rot_rate) * frametime / W_TICSPERFRAME, 1);
+			float chargelimit = WEP_CVAR(WEP_VORTEX, charge_limit);
+			float chargerate = WEP_CVAR(WEP_VORTEX, charge_rot_rate);
+			if(WEP_CVAR(WEP_VORTEX, charge_rot_unequipped_rate) && this.(weaponentity).m_weapon != WEP_VORTEX)
+			{
+				chargelimit = WEP_CVAR(WEP_VORTEX, charge_rot_unequipped_limit);
+				chargerate = WEP_CVAR(WEP_VORTEX, charge_rot_unequipped_rate);
+			}
+
+			if (chargerate && this.(weaponentity).vortex_charge > chargelimit && this.(weaponentity).vortex_charge_rottime < time)
+				this.(weaponentity).vortex_charge = bound(chargelimit, this.(weaponentity).vortex_charge - chargerate * frametime / W_TICSPERFRAME, 1);
 		}
 
 		player_regen(this);
@@ -2514,7 +2566,7 @@ void ObserverOrSpectatorThink(entity this)
 
 	if (IS_BOT_CLIENT(this) && !CS(this).autojoin_checked)
 	{
-		CS(this).autojoin_checked = true;
+		CS(this).autojoin_checked = 1;
 		TRANSMUTE(Player, this);
 		PutClientInServer(this);
 
@@ -2700,18 +2752,21 @@ void PlayerPreThink (entity this)
 			IntermissionThink(this);
 		return;
 	}
-	else if (IS_REAL_CLIENT(this) && CS(this).autojoin_checked <= 0 && time >= CS(this).jointime + MIN_SPEC_TIME)
+	else if (IS_REAL_CLIENT(this) && CS(this).autojoin_checked <= 0 && time >= CS(this).jointime + MIN_SPEC_TIME
+	&& this.ping > 0) // delay until centreprints could work (still on loading screen but timers start when it disappears)
 	{
 		bool early_join_requested = (CS(this).autojoin_checked < 0);
 		CS(this).autojoin_checked = 1;
 		// don't do this in ClientConnect
 		// many things can go wrong if a client is spawned as player on connection
 		if (early_join_requested || MUTATOR_CALLHOOK(AutoJoinOnConnection, this)
-		|| (!(autocvar_sv_spectate || autocvar_g_campaign || (Player_GetForcedTeamIndex(this) == TEAM_FORCE_SPECTATOR))
-		    && (!teamplay || autocvar_g_balance_teams)))
+		|| (!(autocvar_sv_spectate || autocvar_g_campaign) && (!teamplay || autocvar_g_balance_teams)))
 		{
 			if(joinAllowed(this, this.wants_join))
 				Join(this, teamplay);
+			else if (!autocvar_sv_spectate) // we really want to join and some blockers may be brief (g_maxping)
+				if (time < CS(this).spectatortime + MIN_SPEC_TIME) // centreprints don't appear while spamming
+					CS(this).autojoin_checked = -1; // keep trying for MIN_SPEC_TIME
 			return;
 		}
 	}
@@ -2740,14 +2795,14 @@ void PlayerPreThink (entity this)
 		entity e = CS(this).teamkill_soundsource;
 		entity oldpusher = e.pusher;
 		e.pusher = this;
-		PlayerSound(e, playersound_teamshoot, CH_VOICE, VOL_BASEVOICE, VOICETYPE_LASTATTACKER_ONLY);
+		PlayerSound(e, playersound_teamshoot, CH_VOICE, VOL_BASEVOICE, VOICETYPE_LASTATTACKER_ONLY, 1);
 		e.pusher = oldpusher;
 	}
 
 	if (CS(this).taunt_soundtime && time > CS(this).taunt_soundtime)
 	{
 		CS(this).taunt_soundtime = 0;
-		PlayerSound(this, playersound_taunt, CH_VOICE, VOL_BASEVOICE, VOICETYPE_AUTOTAUNT);
+		PlayerSound(this, playersound_taunt, CH_VOICE, VOL_BASEVOICE, VOICETYPE_AUTOTAUNT, 1);
 	}
 
 	target_voicescript_next(this);
@@ -2766,7 +2821,7 @@ void DrownPlayer(entity this)
 	if (this.waterlevel != WATERLEVEL_SUBMERGED)
 	{
 		if(STAT(AIR_FINISHED, this) && STAT(AIR_FINISHED, this) < time)
-			PlayerSound(this, playersound_gasp, CH_PLAYER, VOL_BASE, VOICETYPE_PLAYERSOUND);
+			PlayerSound(this, playersound_gasp, CH_PLAYER, VOL_BASE, VOICETYPE_PLAYERSOUND, 1);
 		STAT(AIR_FINISHED, this) = 0;
 	}
 	else
@@ -2797,8 +2852,6 @@ void Player_Physics(entity this)
 		return;
 
 	Movetype_Physics_NoMatchTicrate(this, CS(this).pm_frametime, true);
-
-	CS(this).pm_frametime = 0;
 }
 
 /*
@@ -2822,11 +2875,6 @@ void PlayerPostThink (entity this)
 		if (CS(this).impulse)
 			ImpulseCommands(this);
 		GetPressedKeys(this);
-		if (game_stopped)
-		{
-			CSQCMODEL_AUTOUPDATE(this);
-			return;
-		}
 	}
 	else if (IS_OBSERVER(this) && STAT(PRESSED_KEYS, this))
 	{
@@ -2835,6 +2883,7 @@ void PlayerPostThink (entity this)
 	}
 
 	CSQCMODEL_AUTOUPDATE(this);
+	CS(this).pm_frametime = 0; // CSQCModel_CheckUpdate() and Player_Physics() both read it
 }
 
 /*
@@ -2848,6 +2897,13 @@ frametime is always set here.
 */
 void PlayerFrame (entity this)
 {
+	Physics_UpdateStats(this);
+
+	// Don't accumulate alivetime whilst afk as xonstat skill ratings are based on score per second.
+	// Time accumulated so far (including the 30s) is retained in the event of a move to spec, disconnect, etc.
+	if (this.alivetime_start && time - CS(this).parm_idlesince >= 30)
+		this.alivetime_start += frametime;
+
 // formerly PreThink code
 
 	if (this.score_frame_dmg)
@@ -2875,11 +2931,12 @@ void PlayerFrame (entity this)
 	&& (IS_SPEC(this) || IS_OBSERVER(this)) && !INGAME(this))
 	{
 		float cutoff = CS(this).spectatortime + autocvar_g_maxplayers_spectator_blocktime;
-		if (time > cutoff + MIN_SPEC_TIME * 0.5)
+		if (time > cutoff + MIN_SPEC_TIME * 0.5 // sv_spectate was disabled recently (or the server was stalled far too long)
+		|| CS(this).autojoin_checked == 0) // or too soon to have tried to autojoin
 		{
-			// sv_spectate was disabled recently (or the server was stalled far too long)
 			CS(this).spectatortime = time; // reset the grace period
-			Send_Notification(NOTIF_ONE_ONLY, this, MSG_MULTI, SPECTATE_WARNING, autocvar_g_maxplayers_spectator_blocktime);
+			if (CS(this).autojoin_checked) // only notify when sv_spectate was disabled recently, to prevent spam
+				Send_Notification(NOTIF_ONE_ONLY, this, MSG_MULTI, SPECTATE_WARNING, autocvar_g_maxplayers_spectator_blocktime);
 		}
 		else if (time > cutoff)
 			if (dropclient_schedule(this))
@@ -2933,6 +2990,9 @@ void PlayerFrame (entity this)
 		}
 	}
 
+	if (this.ignore_list_send_time > 0 && time > this.ignore_list_send_time)
+		ignore_list_send(this);
+
 	// GOD MODE info
 	if (!(this.flags & FL_GODMODE) && this.max_armorvalue)
 	{
@@ -2974,7 +3034,7 @@ void PlayerFrame (entity this)
 		if(autocvar_sv_maxidle > 0 && autocvar_sv_maxidle_slots > 0)
 		{
 			// maxidle disabled in local matches by not counting clients (totalClients 0)
-			if (server_is_dedicated)
+			if (autocvar_sv_dedicated)
 			{
 				FOREACH_CLIENT(IS_REAL_CLIENT(it) || autocvar_sv_maxidle_slots_countbots,
 				{

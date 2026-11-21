@@ -9,12 +9,9 @@ REGISTER_NET_TEMP(net_effect)
 #ifdef CSQC
 NET_HANDLE(net_effect, bool isNew)
 {
-	int net_name = (REGISTRY_COUNT(Effects) >= 255) ? ReadShort() : ReadByte();
-
-	entity eff = REGISTRY_GET(Effects, net_name);
+	entity eff = ReadRegistered(Effects);
 
 	vector vel = '0 0 0';
-	int eff_cnt = 1;
 	int eff_flags = 0;
 	bool eff_trail = eff.eent_eff_trail;
 	vector v = ReadVector();
@@ -43,13 +40,11 @@ NET_HANDLE(net_effect, bool isNew)
 	else if(extraflags & EFF_NET_COLOR_SAME)
 		particles_colormax = particles_colormin;
 
-	if(!eff_trail)
-		eff_cnt = ReadByte();
-
+	int eff_cnt = ReadByte();
 	if(eff_trail)
-		WarpZone_TrailParticles_WithMultiplier(NULL, particleeffectnum(eff), v, vel, 1, eff_flags);
+		WarpZone_TrailParticles_WithMultiplier(NULL, particleeffectnum(eff), v, vel, eff_cnt, eff_flags);
 	else
-		boxparticles(particleeffectnum(eff), NULL, v, v, vel, vel, 1, eff_flags);
+		boxparticles(particleeffectnum(eff), NULL, v, v, vel, vel, eff_cnt, eff_flags);
 	return true;
 }
 #endif
@@ -60,9 +55,7 @@ bool Net_Write_Effect(entity this, entity client, int sf)
 	int channel = MSG_ONE;
 	msg_entity = client;
 	WriteHeader(channel, net_effect);
-	(REGISTRY_COUNT(Effects) >= 255)
-	? WriteShort(channel, this.m_id)
-	: WriteByte(channel, this.m_id);
+	WriteRegistered(Effects, channel, this);
 	WriteVector(channel, this.eent_net_location);
 
 	int extraflags = 0;
@@ -98,7 +91,7 @@ bool Net_Write_Effect(entity this, entity client, int sf)
 		WriteByte(channel, rint(bound(0, 16 * col.z, 255)));
 	}
 
-	if(!this.eent_eff_trail) { WriteByte(channel, this.eent_net_count); }
+	WriteByte(channel, this.eent_net_count);
 	return true;
 }
 

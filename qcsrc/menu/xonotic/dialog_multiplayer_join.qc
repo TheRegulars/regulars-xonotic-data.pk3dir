@@ -11,8 +11,7 @@
 
 entity makeXonoticServerListTab()
 {
-	entity me;
-	me = NEW(XonoticServerListTab);
+	entity me = NEW(XonoticServerListTab);
 	me.configureDialog(me);
 	return me;
 }
@@ -55,11 +54,11 @@ void XonoticServerListTab_fill(entity me)
 			e.onClickEntity = slist;
 			e.onClick = ServerList_ShowLaggy_Click;
 		/* END FILTER CONTROLS */
-		me.TDempty(me, 0.1);
+		me.TDempty(me, 0.05);
 		me.TD(me, 1, 0.8, e = makeXonoticButton_T(_("Refresh"), '0 0 0', _("Reload the server list")));
 			e.onClick = XonoticServerListTab_refresh;
 			e.onClickEntity = slist;
-		me.TD(me, 1, 0.6, e = makeXonoticCheckBox_T(0, "net_slist_pause", _("Pause"),
+		me.TD(me, 1, 0.65, e = makeXonoticCheckBox_T(0, "net_slist_pause", _("Pause"),
 			_("Pause updating the server list to prevent servers from \"jumping around\"")));
 
 	me.gotoRC(me, 2, 0);
@@ -90,7 +89,7 @@ void XonoticServerListTab_fill(entity me)
 			slist.infoButton = e;
 	me.TR(me);
 		me.TD(me, 1, me.columns * 0.5, e = makeXonoticLeaveMatchButton('0 0 0', 0));
-		me.TD(me, 1, me.columns * 0.5, e = makeXonoticButton(_("Join!"), '0 0 0'));
+		me.TD(me, 1, me.columns * 0.5, e = makeXonoticButton(_("Join!"), '0 1 0'));
 			e.onClick = ServerList_Connect_Click;
 			e.onClickEntity = slist;
 			slist.connectButton = e;

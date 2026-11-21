@@ -10,18 +10,16 @@
 		if (txt != me.currentText)
 		{
 			strcpy(me.currentText, txt);
-			me.recalcPos = 1;
+			me.recalcPos = true;
 		}
 	}
 	void Label_recalcPositionWithText(entity me, string t)
 	{
-		float spaceAvail;
-		spaceAvail = 1 - me.keepspaceLeft - me.keepspaceRight;
+		float spaceAvail = 1 - me.keepspaceLeft - me.keepspaceRight;
 
 		if (me.isBold) draw_beginBoldFont();
 
-		float spaceUsed;
-		spaceUsed = draw_TextWidth(t, me.allowColors, me.realFontSize);
+		float spaceUsed = draw_TextWidth(t, me.allowColors, me.realFontSize);
 
 		if (spaceUsed <= spaceAvail)
 		{
@@ -83,7 +81,7 @@
 
 		if (me.isBold) draw_endBoldFont();
 
-		me.recalcPos = 0;
+		me.recalcPos = false;
 	}
 	void Label_resizeNotify(entity me, vector relOrigin, vector relSize, vector absOrigin, vector absSize)
 	{
@@ -95,7 +93,7 @@
 		if (me.marginLeft) me.keepspaceLeft = me.marginLeft * me.realFontSize.x;
 		if (me.marginRight) me.keepspaceRight = me.marginRight * me.realFontSize.x;
 
-		me.recalcPos = 1;
+		me.recalcPos = true;
 	}
 	void Label_configureLabel(entity me, string txt, float sz, float algn)
 	{
@@ -115,7 +113,7 @@
 			if (t != me.currentText)
 			{
 				strcpy(me.currentText, t);
-				me.recalcPos = 1;
+				me.recalcPos = true;
 			}
 		}
 		else

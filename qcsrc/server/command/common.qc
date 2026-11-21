@@ -37,14 +37,14 @@ string GetCallerName(entity caller)
 }
 
 // verify that the client provided is acceptable for kicking
-float VerifyKickableEntity(entity client)
+int VerifyKickableEntity(entity client)
 {
 	if (!IS_REAL_CLIENT(client)) return CLIENT_NOT_REAL;
 	return CLIENT_ACCEPTABLE;
 }
 
 // verify that the client provided is acceptable for use
-float VerifyClientEntity(entity client, float must_be_real, float must_be_bots)
+int VerifyClientEntity(entity client, bool must_be_real, bool must_be_bots)
 {
 	if (!IS_CLIENT(client)) return CLIENT_DOESNT_EXIST;
 	else if (must_be_real && !IS_REAL_CLIENT(client)) return CLIENT_NOT_REAL;
@@ -74,16 +74,15 @@ string GetClientErrorString_color(float clienterror, string original_input, stri
 }
 
 // is this entity number even in the possible range of entities?
-float VerifyClientNumber(float tmp_number)
+bool VerifyClientNumber(int num)
 {
-	if ((tmp_number < 1) || (tmp_number > maxclients)) return false;
-	else return true;
+	return (num >= 1 && num <= maxclients);
 }
 
-entity GetIndexedEntity(int argc, float start_index)
+entity GetIndexedEntity(int argc, int start_index)
 {
 	entity selection;
-	float tmp_number, index;
+	int tmp_number, index;
 	string tmp_string;
 
 	next_token = -1;
@@ -144,7 +143,7 @@ entity GetIndexedEntity(int argc, float start_index)
 entity GetFilteredEntity(string input)
 {
 	entity selection;
-	float tmp_number;
+	int tmp_number;
 
 	if (substring(input, 0, 1) == "#") tmp_number = stof(substring(input, 1, -1));
 	else tmp_number = stof(input);
@@ -206,8 +205,8 @@ void timeout_handler_think(entity this)
 				if (timeout_time == autocvar_sv_timeout_resumetime) // play a warning sound when only <sv_timeout_resumetime> seconds are left
 					Send_Notification(NOTIF_ALL, NULL, MSG_ANNCE, ANNCE_PREPARE);
 
-				this.nextthink = time + TIMEOUT_SLOWMO_VALUE;       // think again in one second
-				timeout_time -= 1;                                  // decrease the time counter
+				this.nextthink = time + TIMEOUT_SLOWMO_VALUE; // think again in one second
+				--timeout_time;                               // decrease the time counter
 			}
 			else  // time to end the timeout
 			{
@@ -235,7 +234,7 @@ void timeout_handler_think(entity this)
 				Send_Notification(NOTIF_ALL, NULL, MSG_CENTER, CENTER_TIMEOUT_BEGINNING, timeout_leadtime);
 
 				this.nextthink = time + 1; // think again in one second
-				timeout_leadtime -= 1;     // decrease the time counter
+				--timeout_leadtime;        // decrease the time counter
 			}
 			else  // time to begin the timeout
 			{
@@ -382,7 +381,7 @@ void CommonCommand_editmob(int request, entity caller, int argc)
 
 					if (!found && arg_lower != "random" && arg_lower != "anyrandom") { print_to(caller, "Invalid monster"); return; }
 
-					totalspawned += 1;
+					++totalspawned;
 					WarpZone_TraceBox(CENTER_OR_VIEWOFS(caller), caller.mins, caller.maxs, CENTER_OR_VIEWOFS(caller) + v_forward * 150, true, caller);
 					mon = spawnmonster(spawn(), arg_lower, MON_Null, caller, caller, trace_endpos, false, false, moveflag);
 					print_to(caller, strcat("Spawned ", mon.m_name));
@@ -731,9 +730,11 @@ void CommonCommand_timeout(int request, entity caller)  // DEAR GOD THIS COMMAND
 
 				else  // everything should be okay, proceed with starting the timeout
 				{
-					if (caller)   CS(caller).allowed_timeouts -= 1;
+					if (caller)
+						--CS(caller).allowed_timeouts;
 					// write a bprint who started the timeout (and how many they have left)
-					bprint(GetCallerName(caller), " ^7called a timeout", (caller ? strcat(" (", ftos(CS(caller).allowed_timeouts), " timeout(s) left)") : ""), "!\n");
+					string s = (caller ? strcat(" (", ftos(CS(caller).allowed_timeouts), " timeout(s) left)") : "");
+					bprint(GetCallerName(caller), " ^7called a timeout", s, "!\n");
 
 					timeout_status = TIMEOUT_LEADTIME;
 					timeout_caller = caller;

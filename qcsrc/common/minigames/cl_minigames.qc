@@ -22,8 +22,8 @@ vector minigame_hud_denormalize(vector v, vector pos, vector mySize)
 // De-normalize (2D vector) v from relative size inside pos mySize
 vector minigame_hud_denormalize_size(vector v, vector pos, vector mySize)
 {
-	v_x = v_x * mySize_x;
-	v_y = v_y * mySize_y;
+	v_x *= mySize_x;
+	v_y *= mySize_y;
 	return v;
 }
 
@@ -54,7 +54,9 @@ string minigame_texture(string name)
 	return path;
 }
 
-#define FIELD(Flags, Type, Name) MSLE_CLEAN_##Type(this.Name)
+#define FIELD(Flags, Type, Name) \
+	MSLE_CLEAN_##Type(this.Name)
+
 #define MSLE_CLEAN_String(x) strunzone(x);
 #define MSLE_CLEAN_Byte(x)
 #define MSLE_CLEAN_Char(x)
@@ -66,8 +68,12 @@ string minigame_texture(string name)
 #define MSLE_CLEAN_Vector(x)
 #define MSLE_CLEAN_Vector2D(x)
 
-#define MSLE(Name,Fields) \
-	void msle_entremove_##Name(entity this) { strunzone(this.netname); Fields }
+#define MSLE(Name, Fields) \
+	void msle_entremove_##Name(entity this) \
+	{ \
+		strunzone(this.netname); \
+		Fields \
+	}
 MINIGAME_SIMPLELINKED_ENTITIES
 #undef MSLE
 #undef FIELD
@@ -154,18 +160,27 @@ void minigame_player_entremove(entity this)
 }
 
 string() ReadString_Raw = #366;
-string ReadString_Zoned() { return strzone(ReadString_Raw()); }
+string ReadString_Zoned()
+{
+	return strzone(ReadString_Raw());
+}
 #define ReadString ReadString_Zoned
-#define FIELD(Flags, Type,Name) if ( sf & (Flags) ) this.Name = Read##Type();
-#define MSLE(Name,Fields) \
-	else if ( this.classname == #Name ) { \
-		if ( sf & MINIG_SF_CREATE ) { \
+#define FIELD(Flags, Type, Name) \
+	if (sf & (Flags)) \
+		this.Name = Read##Type();
+
+#define MSLE(Name, Fields) \
+	else if (this.classname == #Name) \
+	{ \
+		if (sf & MINIG_SF_CREATE) \
+		{ \
 			minigame_read_owner(this); \
 			this.entremove = msle_entremove_##Name; \
 		} \
 		minigame_ent = this.owner; \
 		Fields \
 	}
+
 void minigame_read_owner(entity this)
 {
 	string owner_name = ReadString_Raw();
@@ -263,8 +278,6 @@ void minigame_show_allspecs(vector boardpos, vector boardsize)
 			current_spec = textShortenToWidth(current_spec, max_current_spec_width, hud_fontsize, stringwidth_colors);
 			if (allspecs != "")
 				current_spec = strcat(", ", current_spec);
-			else
-				current_spec = current_spec;
 
 			allspecs_width = stringwidth(allspecs, true, hud_fontsize);
 
@@ -406,8 +419,7 @@ void minigame_drawpic_centered( vector pos, string texture, vector sz,
 // It could be a bug in the compiler or in darkplaces
 void minigame_cmd_workaround(float dummy, string...cmdargc)
 {
-	string cmd;
-	cmd = "cmd minigame ";
+	string cmd = "cmd minigame ";
 	float i;
 	for ( i = 0; i < cmdargc; ++i )
 		cmd = strcat(cmd,...(i,string));

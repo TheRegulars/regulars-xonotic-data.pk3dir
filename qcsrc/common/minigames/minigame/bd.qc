@@ -368,7 +368,7 @@ void bd_move(entity minigame, entity player, string dir)
 				}
 
 			if(moved)
-				player.bd_moves++;
+				++player.bd_moves;
 
 			bd_check_winner(minigame);
 
@@ -1107,11 +1107,10 @@ void bd_hud_board(vector pos, vector mySize)
 		string victory_text = _("Game over!");
 
 		if(active_minigame.minigame_flags & BD_TURN_WIN)
-			victory_text = _("Well done! Click 'Next Level' to continue");
+			victory_text = _("Well done! Click \"Next Level\" to continue");
 
 		vector win_pos = pos+eY*(mySize_y-winfs_y)/2;
-		vector win_sz;
-		win_sz = minigame_drawcolorcodedstring_wrapped(mySize_x,win_pos,
+		vector win_sz = minigame_drawcolorcodedstring_wrapped(mySize_x,win_pos,
 			victory_text, winfs, 0, DRAWFLAG_NORMAL, 0.5);
 
 		drawfill(win_pos-eY*hud_fontsize_y,win_sz+2*eY*hud_fontsize_y,'0.3 0.3 1',0.8*panel_fg_alpha,DRAWFLAG_ADDITIVE);
@@ -1128,8 +1127,7 @@ void bd_hud_board(vector pos, vector mySize)
 void bd_hud_status(vector pos, vector mySize)
 {
 	HUD_Panel_DrawBg();
-	vector ts;
-	ts = minigame_drawstring_wrapped(mySize_x,pos,active_minigame.descriptor.message,
+	vector ts = minigame_drawstring_wrapped(mySize_x,pos,active_minigame.descriptor.message,
 		hud_fontsize * 2, '0.25 0.47 0.72', panel_fg_alpha, DRAWFLAG_NORMAL,0.5);
 
 	pos_y += ts_y;
@@ -1194,7 +1192,7 @@ string bd_turn_to_string(int turnflags)
 	}
 
 	if( turnflags & BD_TURN_EDIT )
-		return _("Press the space bar to change your currently selected tile");
+		return _("Press the spacebar to change your currently selected tile");
 
 	if ( turnflags & BD_TURN_MOVE )
 		return _("Push the boulders onto the targets");
@@ -1359,7 +1357,7 @@ int bd_client_event(entity minigame, string event, ...)
 							return true;
 						if(bd_change_dozer_angle(minigame))
 							return true;
-						bd_curr_tile += 1;
+						++bd_curr_tile;
 						if(bd_curr_tile > BD_TILE_LAST)
 							bd_curr_tile = 1;
 						return true;

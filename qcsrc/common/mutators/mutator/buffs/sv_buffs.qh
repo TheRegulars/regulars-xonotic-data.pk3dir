@@ -20,8 +20,7 @@ bool autocvar_g_buffs_effects;
 float autocvar_g_buffs_waypoint_distance;
 bool autocvar_g_buffs_pickup_anyway = false;
 float autocvar_g_buffs_pickup_delay = 0.7;
-bool autocvar_g_buffs_randomize;
-bool autocvar_g_buffs_randomize_teamplay = true;
+int autocvar_g_buffs_randomize;
 float autocvar_g_buffs_random_lifetime;
 bool autocvar_g_buffs_random_location;
 int autocvar_g_buffs_random_location_attempts;
@@ -49,3 +48,6 @@ float buff_Available(entity buff);
 void buff_RemoveAll(entity actor, int removal_type);
 
 entity buff_FirstFromFlags(entity actor);
+
+/// Spawn effects on a player with a buff
+void buff_Effect(entity player, entity eff, vector eff_loc, vector eff_vel, int eff_cnt, bool hide);
