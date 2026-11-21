@@ -956,10 +956,9 @@ void ClientInit_misc(entity this)
 	WriteInt24_t(channel, compressShotOrigin(arc_shotorigin[2]));
 	WriteInt24_t(channel, compressShotOrigin(arc_shotorigin[3]));
 
-	if(autocvar_sv_foginterval && world.fog != "")
-		WriteString(channel, world.fog);
-	else
-		WriteString(channel, "");
+	WriteString(channel, world.fog);
+	WriteByte(channel, autocvar_sv_foginterval && world.fog != ""); // only forced if necessary
+
 	WriteByte(channel, this.count * 255.0); // g_balance_armor_blockpercent
 	WriteByte(channel, this.cnt * 255.0); // g_balance_damagepush_speedfactor
 	WriteByte(channel, serverflags);
@@ -1145,7 +1144,7 @@ void SendWelcomeMessage(entity this, int msg_type)
 	MUTATOR_CALLHOOK(BuildMutatorsPrettyString, "");
 	string modifications = M_ARGV(0, string);
 
-	if (!g_weaponarena && cvar("g_balance_blaster_weaponstartoverride") == 0)
+	if (g_weaponarena_type == WEPARENA_OFF && cvar("g_balance_blaster_weaponstartoverride") == 0)
 		modifications = strcat(modifications, ", No start weapons");
 	if(cvar("sv_gravity") < stof(cvar_defstring("sv_gravity")))
 		modifications = strcat(modifications, ", Low gravity");
@@ -1157,7 +1156,9 @@ void SendWelcomeMessage(entity this, int msg_type)
 
 	WriteString(msg_type, modifications);
 
-	WriteString(msg_type, g_weaponarena_list);
+	WriteByte(msg_type, g_weaponarena_type);
+	if (g_weaponarena_type == WEPARENA_CUSTOM)
+		WriteWepSet(msg_type, g_weaponarena_weapons);
 
 	if(cache_lastmutatormsg != autocvar_g_mutatormsg)
 	{
@@ -1253,9 +1254,6 @@ void ClientConnect(entity this)
 		else if (autocvar_sv_quickmenu_file != "" && strstrofs(autocvar_sv_quickmenu_file, "/", 0) && fexists(autocvar_sv_quickmenu_file))
 			stuffcmd(this, sprintf("cl_cmd settemp _hud_panel_quickmenu_file_from_server %s\n", autocvar_sv_quickmenu_file));
 	}
-
-	if (!autocvar_sv_foginterval && world.fog != "")
-		stuffcmd(this, strcat("\nfog ", world.fog, "\nr_fog_exp2 0\nr_drawfog 1\n"));
 
 	CSQCMODEL_AUTOINIT(this);
 
@@ -1609,7 +1607,7 @@ void player_powerups(entity this)
 	// add a way to see what the items were BEFORE all of these checks for the mutator hook
 	int items_prev = this.items;
 
-	if (!MUTATOR_IS_ENABLED(mutator_instagib))
+	if (!MUTATOR_CALLHOOK(SuperweaponsImmutable, this))
 	{
 		// NOTE: superweapons are a special case and as such are handled here instead of the status effects system
 		if (this.items & IT_SUPERWEAPON)
