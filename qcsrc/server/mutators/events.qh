@@ -75,6 +75,13 @@ MUTATOR_HOOKABLE(reset_map_players, EV_NO_ARGS);
 /// Return 1 if player score shall be cleared with g_score_resetonjoin -1
 MUTATOR_HOOKABLE(PreferPlayerScore_Clear, EV_NO_ARGS);
 
+/// Called when a player's score is cleared, if the PreferPlayerScore_Clear check was passed
+#define params(i, o) \
+	i(entity, 0) /* player */ \
+	/**/
+MUTATOR_HOOKABLE(PlayerScore_Clear, params);
+#undef params
+
 /// Called when a player disconnects
 #define params(i, o) \
 	i(entity, 0) /* player */ \
@@ -97,6 +104,7 @@ MUTATOR_HOOKABLE(PlayerDies, params);
 /// Called after a player died
 #define params(i, o) \
 	i(entity, 0) /* player */ \
+	i(entity, 1) /* attacker */ \
 	/**/
 MUTATOR_HOOKABLE(PlayerDied, params);
 #undef params
@@ -167,6 +175,9 @@ MUTATOR_HOOKABLE(MatchEnd_BeforeScores, EV_NO_ARGS);
 
 /// Called when the match ends
 MUTATOR_HOOKABLE(MatchEnd, EV_NO_ARGS);
+
+/// Called when a round ends
+MUTATOR_HOOKABLE(RoundEnd, EV_NO_ARGS);
 
 /** Allows adjusting allowed teams. Return true to use the bitmask value and set
  *  non-empty string to use team entity name. Both behaviors can be active at the
@@ -681,9 +692,7 @@ MUTATOR_HOOKABLE(SV_StartFrame, EV_NO_ARGS);
 MUTATOR_HOOKABLE(SetModname, params);
 #undef params
 
-/** Called for each item being spawned on a map, including dropped weapons.
- *  Return 1 to remove an item.
- */
+/// Called for each item being spawned on a map, including dropped weapons.
 #define params(i, o) \
 	i(entity, 0) /* item */ \
 	/**/
@@ -1280,6 +1289,7 @@ MUTATOR_HOOKABLE(CopyBody, params);
 	o(int,    1) \
 	i(string, 2) /* message */ \
 	i(entity, 3) /* private msg target */ \
+	i(int,    4) /* teamsay */ \
 	/**/
 MUTATOR_HOOKABLE(ChatMessage, params);
 #undef params
@@ -1343,8 +1353,11 @@ MUTATOR_HOOKABLE(HavocBot_Aim, params);
 #undef params
 
 /// Return true to skip respawn time calculations
+/// It's not executed in gametypes with eliminations (no respawns)
 #define params(i, o) \
 	i(entity, 0) /* player */ \
+	i(float,  1) /* respawn delay */ \
+	o(float,  1) /* respawn delay */ \
 	/**/
 MUTATOR_HOOKABLE(CalculateRespawnTime, params);
 #undef params

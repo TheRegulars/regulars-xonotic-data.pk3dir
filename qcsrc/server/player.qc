@@ -635,7 +635,7 @@ void PlayerDamage(entity this, entity inflictor, entity attacker, float damage, 
 				}
 			});
 		}
-		MUTATOR_CALLHOOK(PlayerDied, this);
+		MUTATOR_CALLHOOK(PlayerDied, this, attacker);
 	}
 }
 

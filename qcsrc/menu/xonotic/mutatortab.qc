@@ -99,6 +99,7 @@ void XonoticWeaponarenaCheckBox_configureXonoticWeaponarenaCheckBox(entity me, s
 
 void XonoticWeaponarenaCheckBox_loadCvars(entity me)
 {
+	me.checked = false;
 	int n = tokenize_console(cvar_string("menu_weaponarena"));
 	for (int i = 0; i < n; ++i)
 		if (argv(i) == me.message)
@@ -132,10 +133,9 @@ void XonoticWeaponarenaCheckBox_saveCvars(entity me)
 			mwa = "off";
 	}
 	cvar_set("menu_weaponarena", mwa);
-	if (Weaponarena_nonCustomValue(cvar_string("g_weaponarena")))
+	if (me.disabled)
 		return;
-	else
-		cvar_set("g_weaponarena", mwa);
+	cvar_set("g_weaponarena", mwa);
 
 	entity e;
 	for (int i = 0; i < me.parent.toggleableItemsCount; ++i) // reload cvars for the RadioButtons
@@ -332,11 +332,11 @@ void XonoticMutatorOffhandWeaponsTab_fill(entity me)
 
 	me.TR(me);
 	me.TR(me);
-		me.TD(me, 1, 4 - 0.2, e = makeXonoticCheckBox(0, "g_offhand_blaster", _("Offhand Blaster")));
+		me.TD(me, 1, 4, e = makeXonoticCheckBox(0, "g_offhand_blaster", _("Offhand Blaster")));
 
 	me.TR(me);
 	me.TR(me);
-		me.TD(me, 1, 4 - 0.2, e = makeXonoticCheckBox(0, "g_grappling_hook", _("Offhand Hook")));
+		me.TD(me, 1, 4, e = makeXonoticCheckBox(0, "g_grappling_hook", _("Offhand Hook")));
 			setDependent(e, "g_offhand_blaster", 0, 0);
 	me.TR(me);
 		me.TDempty(me, 0.2);
@@ -456,5 +456,60 @@ METHOD(XonoticMutatorCustomPhysicsTab, canEnable, bool(XonoticMutatorCustomPhysi
 	if (is_already_enabled)
 		return can_enable && (cvar("g_dodging") || cvar("g_multijump") || cvar("g_walljump") || cvar("sv_doublejump")
 			|| cvar("sv_gravity") < stof(cvar_defstring("sv_gravity")) || cvar("g_globalforces"));
+	return can_enable;
+}
+
+
+// Dynamic balancing mutators
+entity makeXonoticMutatorDynamicBalancingTab()
+{
+	entity me = NEW(XonoticMutatorDynamicBalancingTab);
+	me.configureDialog(me);
+	return me;
+}
+
+void XonoticMutatorDynamicBalancingTab_fill(entity me)
+{
+	entity e;
+
+	me.TR(me);
+	me.TR(me);
+		me.TD(me, 1, 4, e = makeXonoticCheckBox(0, "g_dynamic_respawntime", _("Dynamic respawn time")));
+	me.TR(me);
+		me.TDempty(me, 0.2);
+		me.TD(me, 1, 1.8, makeXonoticTextLabel(0, strzone(sprintf(_("%s:"), _("Maximum multiplier")))));
+		me.TD(me, 1, 2, e = makeXonoticSlider(1.25, 5, 0.25, "g_dynamic_respawntime_maxfactor"));
+			e.formatString = "%sx";
+
+	me.TR(me);
+	me.TR(me);
+		me.TD(me, 1, 4, e = makeXonoticCheckBox(0, "g_dynamic_handicap", _("Dynamic handicap")));
+	me.TR(me);
+		me.TDempty(me, 0.2);
+		me.TD(me, 1, 1.8, makeXonoticTextLabel(0, _("Scale:")));
+		me.TD(me, 1, 2, e = makeXonoticSlider(0.25, 3, 0.25, "g_dynamic_handicap_scale"));
+			e.formatString = "%sx";
+	me.TR(me);
+		me.TDempty(me, 0.2);
+		me.TD(me, 1, 1.8, makeXonoticTextLabel(0, strzone(sprintf(_("%s:"), _("Minimum multiplier")))));
+		me.TD(me, 1, 2, e = makeXonoticSlider_T(0.2, 1, 0.1, "g_dynamic_handicap_min",
+			_("Values less than 1 buff players with low scores")));
+			e.formatString = "%sx";
+	me.TR(me);
+		me.TDempty(me, 0.2);
+		me.TD(me, 1, 1.8, makeXonoticTextLabel(0, strzone(sprintf(_("%s:"), _("Maximum multiplier")))));
+		me.TD(me, 1, 2, e = makeXonoticSlider(1, 5, 0.5, "g_dynamic_handicap_max")); // no tooltip needed since it's more self-explanatory
+			e.formatString = "%sx";
+}
+
+METHOD(XonoticMutatorDynamicBalancingTab, describe, string(XonoticMutatorDynamicBalancingTab me))
+{
+	return _("Options to dynamically balance players mid-match.");
+}
+METHOD(XonoticMutatorDynamicBalancingTab, canEnable, bool(XonoticMutatorDynamicBalancingTab me, bool is_already_enabled))
+{
+	bool can_enable = true;
+	if (is_already_enabled)
+		return can_enable && (cvar("g_dynamic_respawntime") || cvar("g_dynamic_handicap"));
 	return can_enable;
 }

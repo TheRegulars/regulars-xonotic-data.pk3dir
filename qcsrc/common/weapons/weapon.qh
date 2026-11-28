@@ -6,8 +6,7 @@
 
 #ifdef SVQC
 	#include <common/effects/qc/_mod.qh>
-#endif
-#ifndef SVQC
+#else
 	#include <common/util.qh> // for icon_path_from_HUDskin
 #endif
 
@@ -182,11 +181,11 @@ ENDCLASS(Weapon)
 
 #ifdef SVQC
 
-void weapon_defaultspawnfunc(entity this, Weapon e);
 #define SPAWNFUNC_WEAPON(name, weapon) \
 	spawnfunc(name) \
 	{ \
-		weapon_defaultspawnfunc(this, weapon); \
+		this.itemdef = weapon; \
+		InitializeEntity(this, StartItem, INITPRIO_DROPTOFLOOR); \
 	}
 
 #else
@@ -249,7 +248,7 @@ const int WEP_TYPE_OTHER           = BIT(0);  ///< not for damaging people
 const int WEP_TYPE_SPLASH          = BIT(1);  ///< splash damage
 const int WEP_TYPE_HITSCAN         = BIT(2);  ///< hitscan
 const int WEP_FLAG_CANCLIMB        = BIT(3);  ///< can be used for movement
-const int WEP_FLAG_NORMAL          = BIT(4);  ///< in "most weapons" set
+const int WEP_FLAG_NORMAL          = BIT(4);  ///< in "standard weapons" set
 const int WEP_FLAG_HIDDEN          = BIT(5);  ///< hides from menu
 const int WEP_FLAG_RELOADABLE      = BIT(6);  ///< can has reload
 const int WEP_FLAG_SUPERWEAPON     = BIT(7);  ///< powerup timer

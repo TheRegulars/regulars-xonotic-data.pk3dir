@@ -143,8 +143,8 @@ bool ClientData_Send(entity this, entity to, int sf)
 	                                sf |= BIT(3); // observing blocked
 	if (autocvar_sv_showspectators == 1 || (autocvar_sv_showspectators && IS_SPEC(to)))
 	                                sf |= BIT(4); // show spectators
-	if (autocvar_sv_teamnagger && teamplay && !(autocvar_bot_vs_human && AVAILABLE_TEAMS == 2))
-	                                sf |= (autocvar_sv_teamnagger & 0x03) << 5; // BIT(5) | BIT(6)
+	if (autocvar_g_balance_teams_maxdifference >= 0 && teamplay && !(autocvar_bot_vs_human && AVAILABLE_TEAMS == 2))
+	                                sf |= (autocvar_g_balance_teams_maxdifference+1 & 0x03) << 5; // BIT(5) | BIT(6)
 	if (to.ignore_list && to.ignore_list_send_time == IGNORE_LIST_SEND_NOW && !IS_SPEC(to))
 	                                sf |= BIT(7); // ignore list (private, won't be sent to spectators)
 
@@ -1433,7 +1433,7 @@ void UpdateChatBubble(entity this)
 
 void calculate_player_respawn_time(entity this)
 {
-	if(MUTATOR_CALLHOOK(CalculateRespawnTime, this))
+	if (GAMETYPE_FLAG(MapInfo_LoadedGametype, ELIMINATIONS))
 		return;
 
 	float gametype_setting_tmp;
@@ -1492,13 +1492,16 @@ void calculate_player_respawn_time(entity this)
 	}
 
 	float sdelay;
-
 	if (pcount <= sdelay_small_count)
 		sdelay = sdelay_small;
 	else if (pcount >= sdelay_large_count)
 		sdelay = sdelay_large;
 	else  // NOTE: this case implies sdelay_large_count > sdelay_small_count.
 		sdelay = sdelay_small + (sdelay_large - sdelay_small) * (pcount - sdelay_small_count) / (sdelay_large_count - sdelay_small_count);
+
+	if(MUTATOR_CALLHOOK(CalculateRespawnTime, this, sdelay))
+		return;
+	sdelay = M_ARGV(1, float);
 
 	if(waves)
 		this.respawn_time = ceil((time + sdelay) / waves) * waves;
